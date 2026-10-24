@@ -27,8 +27,8 @@ async function tableCsv(table) {
 }
 
 function pgEnv() {
-  const u = new URL(db.connectionString);
-  return { ...process.env, PGHOST: u.hostname, PGPORT: u.port || '5432', PGUSER: decodeURIComponent(u.username), PGPASSWORD: decodeURIComponent(u.password), PGDATABASE: u.pathname.slice(1) };
+  const c = db.dbConfig;
+  return { ...process.env, PGHOST: c.host, PGPORT: String(c.port), PGUSER: c.user, PGPASSWORD: c.password, PGDATABASE: c.database };
 }
 
 async function record(kind, file, size, status, error, by) {

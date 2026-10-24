@@ -47,11 +47,11 @@ React 18 + Vite + Ant Design 5 · Node.js 20+ + Express 4 · PostgreSQL 14+ · E
 
 ```bash
 # 1. Database
-createdb inventory_new
+createdb infrastructure_inventory
 
 # 2. Backend
 cd backend
-cp .env.example .env        # set DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, SUPERADMIN_*
+cp .env.example .env        # set DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD, JWT_SECRET, ENCRYPTION_KEY, SUPERADMIN_*
 npm install
 npm run dev                 # http://localhost:4000  (creates every table on first start)
 
