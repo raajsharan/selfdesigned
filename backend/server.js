@@ -1,5 +1,6 @@
-require('dotenv').config();
 const path = require('path');
+// Resolve .env next to this file, not the process cwd, so it loads however the app is launched (pm2, systemd, etc.).
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const fs = require('fs');
 const express = require('express');
 const helmet = require('helmet');
