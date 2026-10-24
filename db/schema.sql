@@ -81,7 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_records_tag    ON inventory_records (asset_tag);
 -- removed; only the reactivated_* columns may be filled in.
 CREATE TABLE IF NOT EXISTS decommission_log (
   id                      BIGSERIAL PRIMARY KEY,
-  source                  VARCHAR(32) NOT NULL,
+  source                  VARCHAR(48) NOT NULL,
   asset_id                BIGINT NOT NULL,
   asset_name              VARCHAR(255),
   asset_snapshot          JSONB NOT NULL,
@@ -169,9 +169,9 @@ CREATE TABLE IF NOT EXISTS backup_history (
 
 CREATE TABLE IF NOT EXISTS nessus_status (
   id              SERIAL PRIMARY KEY,
-  source          VARCHAR(32) NOT NULL,
+  source          VARCHAR(48) NOT NULL,
   asset_id        BIGINT NOT NULL,
-  installed       BOOLEAN NOT NULL DEFAULT FALSE,
+  installed      BOOLEAN NOT NULL DEFAULT FALSE,
   version         VARCHAR(64),
   last_checked_at TIMESTAMPTZ,
   notes           TEXT,
@@ -241,3 +241,8 @@ CREATE TABLE IF NOT EXISTS migration_vms (
   UNIQUE (project_id, tab_key, vm_name)
 );
 CREATE INDEX IF NOT EXISTS idx_migration_vms_proj ON migration_vms (project_id, tab_key);
+
+-- Page addresses (slugs) can be 48 characters; widen source columns created at 32 by earlier versions.
+-- Widening a VARCHAR is a catalog-only change: it does not rewrite rows or fire the decommission_log guard trigger.
+ALTER TABLE decommission_log ALTER COLUMN source TYPE VARCHAR(48);
+ALTER TABLE nessus_status    ALTER COLUMN source TYPE VARCHAR(48);

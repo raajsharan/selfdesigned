@@ -8,7 +8,7 @@ const { getPageBySlug, roleKeys } = require('../services/pageService');
 const { createFromData } = require('./recordController');
 const { audit } = require('../services/auditService');
 const teams = require('../services/teamsNotificationService');
-const { loadInventoryIndex, classify, macKey } = require('../services/reconcileService');
+const { loadInventoryIndex, classify, redact, macKey } = require('../services/reconcileService');
 
 const MISSING = "(v.last_seen < COALESCE(s.last_discovery_at, now()) - interval '1 minute')";
 const TYPES = {
@@ -133,7 +133,7 @@ module.exports = function buildDiscoveryController(typeKey) {
     const { rows } = await db.query(`SELECT * FROM (${T.view}) t WHERE NOT is_template ORDER BY lower(name)`);
     const out = []; const summary = { in_sync: 0, drift: 0, not_in_inventory: 0 };
     for (const v of rows) {
-      const c = classify({ name: v.name, ip: v.ip_address, macs: v.mac_addresses }, idx);
+      const c = redact(classify({ name: v.name, ip: v.ip_address, macs: v.mac_addresses }, idx), req.user);
       summary[c.status] += 1;
       if (c.status !== 'in_sync' || req.query.all === '1') out.push({ id: v.id, name: v.name, ip_address: v.ip_address, mac_addresses: v.mac_addresses, server_name: v.server_name, os: v.os, ...c });
     }
@@ -170,7 +170,7 @@ module.exports = function buildDiscoveryController(typeKey) {
     if (key.length < 6) throw bad('Enter at least 6 hex digits of a MAC address');
     const disc = (await db.query(`SELECT * FROM (${T.view}) t WHERE EXISTS (SELECT 1 FROM unnest(mac_addresses) m WHERE replace(replace(upper(m), ':', ''), '-', '') LIKE $1)`, [`%${key}%`])).rows;
     const idx = await loadInventoryIndex();
-    const inv = idx.rows.filter((a) => macKey(a.mac_address).includes(key));
+    const inv = idx.rows.filter((a) => req.user.pages.has(pageKey(a.source)) && macKey(a.mac_address).includes(key));   // only pages this user may open
     res.json({ discovered: disc, inventory: inv });
   };
 
@@ -187,7 +187,10 @@ module.exports = function buildDiscoveryController(typeKey) {
     const mac = o.mac_address || (v.mac_addresses || [])[0];
     const idx = await loadInventoryIndex();
     const hit = classify({ name: v.name, ip: o.ip_address || v.ip_address, macs: mac ? [mac] : [] }, idx);
-    if (hit.status !== 'not_in_inventory') throw conflict(`Already in inventory (${hit.asset.source} #${hit.asset.id}, matched by ${hit.matched_by})`);
+    if (hit.status !== 'not_in_inventory') {
+      const seen = redact(hit, req.user);
+      throw conflict(seen.asset.restricted ? 'Already in inventory (on a page you cannot open)' : `Already in inventory (${hit.asset.source} #${hit.asset.id}, matched by ${hit.matched_by})`);
+    }
     // Fill whichever fields this page has, found by role. Roles the page does not define are simply skipped.
     const values = { name: o.vm_name || v.name, hostname: o.hostname || v.name, ip: o.ip_address || v.ip_address, mac, os: o.os_type || guessOsType(v.os) || v.os,
       status: o.server_status || (v.is_off ? 'Inactive' : 'Active'), department: o.department, location: o.location, asset_tag: o.asset_tag };

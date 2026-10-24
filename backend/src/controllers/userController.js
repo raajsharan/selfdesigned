@@ -53,7 +53,10 @@ exports.update = async (req, res) => {
     if (!STRONG.test(req.body.password)) throw bad(PASSWORD_RULE);
     add('password_hash', await bcrypt.hash(req.body.password, 12));
   }
-  if (!sets.length) return res.json(cur[0]);
+  if (!sets.length) {
+    const { rows: same } = await db.query(`SELECT ${PUBLIC} FROM users WHERE id = $1`, [req.params.id]);
+    return res.json(same[0]);
+  }
   vals.push(req.params.id);
   const { rows } = await db.query(`UPDATE users SET ${sets.join(', ')}, updated_at = now() WHERE id = $${vals.length} RETURNING ${PUBLIC}`, vals);
   audit(req, 'update', 'user', rows[0].id, { email: rows[0].email, fields: Object.keys(req.body).filter((k) => k !== 'password') });

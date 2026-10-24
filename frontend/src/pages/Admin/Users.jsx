@@ -12,7 +12,7 @@ export default function Users() {
     <div className="page">
       <PageHeader title="Users" sub="Accounts and their roles. Use User Page Control to override access for one person." />
       <CrudTable path="/users" createLabel="Add user" fields={[
-        { name: 'email', label: 'Email', required: true }, { name: 'full_name', label: 'Full name' },
+        { name: 'email', label: 'Email', required: true, createOnly: true }, { name: 'full_name', label: 'Full name' },
         { name: 'role', label: 'Role', type: 'select', required: true, default: 'viewer', options: roles.map((r) => ({ value: r.name, label: r.label || r.name })) },
         { name: 'password', label: 'Password', type: 'password', required: true, help: 'At least 8 characters with upper-case, lower-case and a number. Leave blank when editing to keep the current one.' },
         { name: 'is_active', label: 'Active', type: 'bool', default: true }]}

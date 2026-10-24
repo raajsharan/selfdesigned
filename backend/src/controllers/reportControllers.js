@@ -3,7 +3,7 @@ const db = require('../config/db');
 const { pageKey } = require('../config/pages');
 const EXCLUDED_STATUSES = ['NA', 'Not in Scope'];   // left out of every compliance total
 const { getSetting, setSetting } = require('../services/settingsService');
-const { loadInventoryIndex, classify } = require('../services/reconcileService');
+const { loadInventoryIndex, classify, redact } = require('../services/reconcileService');
 const { unionSql } = require('../utils/inventoryUnion');
 const { sendCsv } = require('../utils/csv');
 const { audit } = require('../services/auditService');
@@ -122,7 +122,7 @@ exports.reconcile = async (req, res) => {
   for (const vm of vms) {
     const c = classify(vm, idx);
     if (c.status === 'not_in_inventory') not_in_inventory.push(vm);
-    else { matchedIds.add(`${c.asset.source}:${c.asset.id}`); if (c.status === 'drift') drift.push({ ...vm, ...c }); }
+    else { matchedIds.add(`${c.asset.source}:${c.asset.id}`); if (c.status === 'drift') drift.push({ ...vm, ...redact(c, req.user) }); }
   }
   // Inventory VMs that discovery never saw (physical servers are excluded: they are not VMs).
   // Pages marked "exclude from reconcile" (e.g. physical servers, which are not VMs) are skipped.

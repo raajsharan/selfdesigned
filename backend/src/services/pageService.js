@@ -139,13 +139,17 @@ async function allPageKeys() {
 /** role -> field key, for a records page. */
 const roleKeys = (page) => Object.fromEntries((page.config.fields || []).filter((f) => f.role).map((f) => [f.role, f.key]));
 
+// Widths of the promoted columns in inventory_records (db/schema.sql); a longer value would fail the INSERT.
+const COLUMN_MAX = { vm_name: 255, hostname: 255, ip_address: 64, mac_address: 64, asset_tag: 64, server_status: 64, os_type: 128,
+  department: 128, location: 128, asset_owner: 255, patching_type: 64, last_patched_at: 10 };
+
 /** Promoted-column values for a record's data (null for roles the page does not define). */
 function promote(page, data) {
   const out = Object.fromEntries(Object.values(ROLE_COLUMNS).map((c) => [c, null]));
   for (const f of page.config.fields || []) {
     if (!f.role) continue;
-    const v = data[f.key];
-    out[ROLE_COLUMNS[f.role]] = v === undefined || v === null || v === '' ? null : (f.role === 'last_patched' ? String(v).slice(0, 10) : String(v).slice(0, 255));
+    const v = data[f.key]; const col = ROLE_COLUMNS[f.role];
+    out[col] = v === undefined || v === null || v === '' ? null : String(v).slice(0, COLUMN_MAX[col]);
   }
   return out;
 }

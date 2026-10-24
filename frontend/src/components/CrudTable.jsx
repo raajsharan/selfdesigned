@@ -5,7 +5,8 @@ import api, { errMsg } from '../api/client';
 
 /**
  * Generic list + add/edit modal for simple admin resources.
- * fields: [{ name, label, type: 'text'|'number'|'bool'|'select'|'password', required, options, help }]
+ * fields: [{ name, label, type: 'text'|'number'|'bool'|'select'|'password', required, options, help, createOnly }]
+ * createOnly: shown read-only when editing and not sent on update.
  */
 export default function CrudTable({ path, listPath, fields, columns, createLabel = 'Add', canEdit = true, rowKey = 'id', extraActions, transform }) {
   const { message } = App.useApp();
@@ -24,7 +25,10 @@ export default function CrudTable({ path, listPath, fields, columns, createLabel
   const save = async () => {
     const v = await form.validateFields();
     try {
-      if (editing[rowKey]) await api.put(`${path}/${editing[rowKey]}`, v); else await api.post(path, v);
+      if (editing[rowKey]) {
+        for (const f of fields) if (f.createOnly) delete v[f.name];   // the API refuses to change these once created
+        await api.put(`${path}/${editing[rowKey]}`, v);
+      } else await api.post(path, v);
       message.success('Saved'); setEditing(null); load();
     } catch (e) { message.error(errMsg(e)); }
   };
@@ -47,7 +51,7 @@ export default function CrudTable({ path, listPath, fields, columns, createLabel
                 : f.type === 'bool' ? <Switch />
                 : f.type === 'select' ? <Select options={(f.options || []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o))} showSearch />
                 : f.type === 'password' ? <Input.Password autoComplete="new-password" placeholder={editing?.[rowKey] ? 'Leave blank to keep the current value' : ''} />
-                : <Input maxLength={f.max || 255} />}
+                : <Input maxLength={f.max || 255} disabled={f.createOnly && !!editing?.[rowKey]} />}
             </Form.Item>
           ))}
         </Form>

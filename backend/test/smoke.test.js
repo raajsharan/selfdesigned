@@ -434,6 +434,36 @@ test('deleting a page: guarded, cascades its records, keeps the decommission log
   assert.equal(dup.status, 201); assert.equal(dup.json.config.fields.length, 13);
   assert.equal((await api('GET', `/p/${dup.json.slug}/records`, { token: S.admin })).json.total, 0);
 });
+test('regressions: no hash leak, long values, long page addresses, page access in MAC lookup', async () => {
+  // PUT /users/:id with nothing to change must not echo the password hash
+  const users = (await api('GET', '/users', { token: S.su })).json; const viewer = users.find((u) => u.email === `view-${run}@example.com`);
+  const noop = await api('PUT', `/users/${viewer.id}`, { token: S.admin, body: {} });
+  assert.equal(noop.status, 200); assert.equal(noop.json.password_hash, undefined, 'hash must not be returned'); assert.equal(noop.json.email, viewer.email);
+  assert.equal((await api('PUT', `/users/${viewer.id}`, { token: S.admin, body: { email: 'x@example.com' } })).status, 400, 'email cannot be changed');
+
+  // values longer than the promoted columns are stored, not a 500
+  const long = await api('POST', `/p/${S.pB.slug}/records`, { token: S.admin, body: { data: { device: `long-${run}`, hw_addr: mac(100), tag: `LONG-${run}-`.padEnd(70, 'x'), state: 's'.repeat(100) } } });
+  assert.equal(long.status, 201, long.text); assert.equal(long.json.data.state.length, 100);
+
+  // a 45-character page address works with decommission (decommission_log.source was VARCHAR(32))
+  const slug = `a${run}`.padEnd(45, 'z');
+  assert.equal((await api('POST', '/pages', { token: S.admin, body: { slug, title: 'Long address', kind: 'records', config: otherConfig() } })).status, 201);
+  const rec = await api('POST', `/p/${slug}/records`, { token: S.admin, body: { data: { device: `ld-${run}`, hw_addr: mac(101) } } });
+  assert.equal((await api('POST', `/p/${slug}/records/${rec.json.id}/decommission`, { token: S.admin, body: { reason: 'long slug' } })).status, 200);
+  const pg = (await api('GET', `/pages/${slug}`, { token: S.admin })).json;
+  assert.equal((await api('DELETE', `/pages/${pg.id}?confirm=${slug}`, { token: S.admin })).status, 200);
+
+  // MAC lookup only shows inventory rows from pages the caller may open
+  const target = await api('POST', `/p/${S.pB.slug}/records`, { token: S.admin, body: { data: { device: `ml-${run}`, hw_addr: mac(102) } } });
+  assert.equal(target.status, 201, target.text);
+  const lookup = () => api('GET', `/vmware/mac-lookup?mac=${encodeURIComponent(mac(102))}`, { token: S.viewer });
+  assert.equal((await lookup()).json.inventory.length, 1, 'visible while the viewer can open the page');
+  await api('PUT', `/users/page-control/${viewer.id}`, { token: S.su, body: { page_overrides: { [`page:${S.pB.slug}`]: false }, can_view_passwords: false } });
+  const hidden = await lookup();
+  assert.equal(hidden.status, 200); assert.equal(hidden.json.inventory.length, 0, 'blocked page must not leak through MAC lookup');
+  await api('PUT', `/users/page-control/${viewer.id}`, { token: S.su, body: { page_overrides: {}, can_view_passwords: false } });
+});
+
 test('swagger, 404s and health', async () => {
   assert.equal((await api('GET', '/health')).status, 200);
   assert.equal((await api('GET', '/nope')).status, 404);

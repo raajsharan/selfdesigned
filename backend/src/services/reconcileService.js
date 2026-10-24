@@ -35,4 +35,14 @@ function classify(vm, idx) {
   return { status: issues.length ? 'drift' : 'in_sync', matched_by: hit.by, asset: { source: hit.asset.source, id: hit.asset.id, tag: hit.asset.asset_tag }, issues };
 }
 
-module.exports = { loadInventoryIndex, matchVm, classify, macKey };
+/**
+ * Hide details of a matched asset on a page the user may not open. The status is kept (so counts stay right)
+ * but the page, id, tag and the inventory values quoted in `issues` are not disclosed.
+ */
+function redact(c, user) {
+  if (!c.asset || user.pages.has(`page:${c.asset.source}`)) return c;
+  return { ...c, asset: { source: null, id: null, tag: null, restricted: true }, matched_by: null,
+    issues: c.issues.length ? ['Differs from an inventory record on a page you cannot open'] : [] };
+}
+
+module.exports = { loadInventoryIndex, matchVm, classify, redact, macKey };
