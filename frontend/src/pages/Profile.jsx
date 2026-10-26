@@ -8,7 +8,6 @@ const SECTIONS = [
   { key: 'general', label: 'General' },
   { key: 'password', label: 'Change Password' },
   { key: 'info', label: 'Info' },
-  { key: 'social', label: 'Social links' },
   { key: 'notifications', label: 'Notifications' },
 ];
 const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -99,7 +98,7 @@ function Password() {
   );
 }
 
-/** Shared by Info and Social links: a list of text inputs saved under one section of the profile. */
+/** A list of text inputs saved under one section of the profile (used by Info). */
 function FieldsSection({ section, fields }) {
   const { message } = App.useApp(); const { user, setUser } = useAuth(); const [form] = Form.useForm(); const [saving, setSaving] = useState(false);
   const save = async (v) => {
@@ -157,15 +156,11 @@ const INFO_FIELDS = [
   { key: 'job_title', label: 'Job Title' }, { key: 'phone', label: 'Phone' }, { key: 'location', label: 'Location' },
   { key: 'bio', label: 'About', long: true, wide: true },
 ];
-const SOCIAL_FIELDS = [
-  { key: 'linkedin', label: 'LinkedIn', url: true, placeholder: 'https://linkedin.com/in/…' }, { key: 'twitter', label: 'Twitter / X', url: true, placeholder: 'https://x.com/…' },
-  { key: 'github', label: 'GitHub', url: true, placeholder: 'https://github.com/…' }, { key: 'website', label: 'Website', url: true, placeholder: 'https://…' },
-];
 
 export default function Profile() {
   const [tab, setTab] = useState('general');
   const body = { general: <General />, password: <Password />, info: <FieldsSection section="info" fields={INFO_FIELDS} />,
-    social: <FieldsSection section="social" fields={SOCIAL_FIELDS} />, notifications: <Notifications /> }[tab];
+    notifications: <Notifications /> }[tab];
   return (
     <div className="prof-wrap">
       <nav className="prof-nav" aria-label="Account settings">

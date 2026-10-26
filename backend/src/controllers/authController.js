@@ -11,7 +11,6 @@ const PASSWORD_RULE = 'Password must be at least 8 characters and include upper-
 const DUMMY_HASH = bcrypt.hashSync(require('crypto').randomBytes(16).toString('hex'), 12);
 
 const NOTIFY_KEYS = ['email_alerts', 'weekly_report', 'security_alerts', 'product_updates'];
-const SOCIAL_KEYS = ['linkedin', 'twitter', 'github', 'website'];
 const INFO_KEYS = ['job_title', 'phone', 'location', 'bio'];
 const INFO_MAX = { job_title: 128, phone: 32, location: 128, bio: 500 };
 const USERNAME_RE = /^[A-Za-z0-9._-]{3,32}$/;
@@ -26,7 +25,6 @@ async function profile(user) {
     user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role, can_view_passwords: user.can_view_passwords,
       username: x.username || null, company: x.company || null, photo: x.photo_data_url || null, created_at: x.created_at, last_login_at: x.last_login_at,
       info: Object.fromEntries(INFO_KEYS.map((k) => [k, p.info?.[k] || ''])),
-      social: Object.fromEntries(SOCIAL_KEYS.map((k) => [k, p.social?.[k] || ''])),
       notifications: Object.fromEntries(NOTIFY_KEYS.map((k) => [k, p.notifications?.[k] ?? k !== 'product_updates'])) },
     pages: [...access.pages], can_write: access.write,
   };
@@ -76,11 +74,6 @@ exports.updateProfile = async (req, res) => {
     patch[name] = Object.fromEntries(keys.map((k) => [k, clean(k, b[name][k])]));
   };
   section('info', INFO_KEYS, (k, v) => text(v, INFO_MAX[k]));
-  section('social', SOCIAL_KEYS, (k, v) => {
-    const s = text(v, 200);
-    if (s && !/^https?:\/\/\S+$/i.test(s)) throw bad(`${k[0].toUpperCase()}${k.slice(1)} link must start with http:// or https://`);
-    return s;
-  });
   section('notifications', NOTIFY_KEYS, (k, v) => v === true);
   if (Object.keys(patch).length) { vals.push(JSON.stringify(patch)); sets.push(`profile = profile || $${vals.length}::jsonb`); }
   if (!sets.length) throw bad('Nothing to update');
