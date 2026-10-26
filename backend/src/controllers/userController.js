@@ -8,8 +8,12 @@ const { bad, notFound, forbidden } = require('../utils/httpError');
 
 const PUBLIC = 'id, email, full_name, role, is_active, can_view_passwords, page_overrides, last_login_at, created_at';
 
+// The superadmin is a hidden account: it never appears in a list, cannot be looked up, edited, deleted or assigned through the API
+// (not even by itself). It is created at startup from SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD.
+const isHidden = (u) => !u || u.role === 'superadmin';
+
 async function assertRoleAssignable(req, role) {
-  if (role === 'superadmin' && !req.user.isSuper) throw forbidden('Only a superadmin can assign the superadmin role');
+  if (role === 'superadmin') throw forbidden('The superadmin role cannot be assigned');
   if (BUILTIN_ROLES[role]) return;
   const { rows } = await db.query('SELECT 1 FROM roles WHERE name = $1', [role]);
   if (!rows[0]) throw bad(`Unknown role "${role}"`);
@@ -17,7 +21,7 @@ async function assertRoleAssignable(req, role) {
 
 exports.list = async (req, res) => {
   const { rows } = await db.query(
-    `SELECT ${PUBLIC} FROM users ${req.user.isSuper ? '' : "WHERE role <> 'superadmin'"} ORDER BY lower(email)`);
+    `SELECT ${PUBLIC} FROM users WHERE role <> 'superadmin' ORDER BY lower(email)`);
   res.json(rows);
 };
 
@@ -34,8 +38,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   const { rows: cur } = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
-  // A non-superadmin must not even learn that the superadmin exists.
-  if (!cur[0] || (cur[0].role === 'superadmin' && !req.user.isSuper)) throw notFound('User not found');
+  if (isHidden(cur[0])) throw notFound('User not found');
   const sets = []; const vals = [];
   const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
   if (req.body.full_name !== undefined) add('full_name', req.body.full_name);
@@ -46,7 +49,6 @@ exports.update = async (req, res) => {
   }
   if (req.body.is_active !== undefined) {
     if (cur[0].id === req.user.id && !req.body.is_active) throw bad('You cannot deactivate your own account');
-    if (cur[0].role === 'superadmin' && !req.body.is_active) throw bad('The superadmin cannot be deactivated');
     add('is_active', !!req.body.is_active);
   }
   if (req.body.password) {
@@ -65,8 +67,7 @@ exports.update = async (req, res) => {
 
 exports.remove = async (req, res) => {
   const { rows } = await db.query('SELECT id, role, email FROM users WHERE id = $1', [req.params.id]);
-  if (!rows[0] || (rows[0].role === 'superadmin' && !req.user.isSuper)) throw notFound('User not found');
-  if (rows[0].role === 'superadmin') throw forbidden('The superadmin cannot be deleted');
+  if (isHidden(rows[0])) throw notFound('User not found');
   if (rows[0].id === req.user.id) throw bad('You cannot delete your own account');
   await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
   audit(req, 'delete', 'user', rows[0].id, { email: rows[0].email });
@@ -77,14 +78,14 @@ exports.remove = async (req, res) => {
 exports.pageControlList = async (req, res) => {
   const { rows } = await db.query(
     `SELECT id, email, full_name, role, can_view_passwords, page_overrides FROM users
-     ${req.user.isSuper ? '' : "WHERE role <> 'superadmin'"} ORDER BY lower(email)`);
+     WHERE role <> 'superadmin' ORDER BY lower(email)`);
   const { keys, dynamic } = await allPageKeys();
   res.json({ users: rows, pages: keys, dynamic_pages: dynamic });
 };
 
 exports.pageControlUpdate = async (req, res) => {
   const { rows: cur } = await db.query('SELECT id, role, email FROM users WHERE id = $1', [req.params.id]);
-  if (!cur[0] || (cur[0].role === 'superadmin' && !req.user.isSuper)) throw notFound('User not found');
+  if (isHidden(cur[0])) throw notFound('User not found');
   const overrides = {}; const valid = new Set((await allPageKeys()).keys);
   for (const [k, v] of Object.entries(req.body.page_overrides || {})) if (valid.has(k) && typeof v === 'boolean') overrides[k] = v;
   await db.query('UPDATE users SET page_overrides = $1, can_view_passwords = $2, updated_at = now() WHERE id = $3',

@@ -9,6 +9,15 @@ CREATE TABLE IF NOT EXISTS roles (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Admin-edited page access / write permission for the editable built-in roles (asset_manager, viewer). No row = defaults.
+CREATE TABLE IF NOT EXISTS builtin_role_overrides (
+  name        VARCHAR(64) PRIMARY KEY,
+  description TEXT,
+  pages       JSONB NOT NULL DEFAULT '[]',
+  can_write   BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id                 SERIAL PRIMARY KEY,
   email              VARCHAR(255) UNIQUE NOT NULL,

@@ -17,6 +17,8 @@ const BUILTIN_ROLES = {
   asset_manager: { pages: USER_PAGES,   write: true,  dynamic: true, label: 'Asset Manager' },
   viewer:        { pages: VIEWER_PAGES, write: false, dynamic: true, label: 'Viewer' },
 };
+// Admin and Superadmin stay fixed so nobody can lock themselves out; the others can be customised (builtin_role_overrides).
+const EDITABLE_BUILTIN = new Set(['asset_manager', 'viewer']);
 const pageKey = (slug) => `page:${slug}`;
 
-module.exports = { PAGES, ADMIN_PAGES, USER_PAGES, VIEWER_PAGES, BUILTIN_ROLES, pageKey };
+module.exports = { PAGES, ADMIN_PAGES, USER_PAGES, VIEWER_PAGES, BUILTIN_ROLES, EDITABLE_BUILTIN, pageKey };

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
-const { BUILTIN_ROLES, PAGES, pageKey } = require('../config/pages');
+const { BUILTIN_ROLES, EDITABLE_BUILTIN, PAGES, pageKey } = require('../config/pages');
 const asyncHandler = require('../utils/asyncHandler');
 
 /** Work out which pages a user may open and whether they may write. */
@@ -11,6 +11,10 @@ async function resolveAccess(user) {
   if (BUILTIN_ROLES[user.role]) {
     pages = new Set([...BUILTIN_ROLES[user.role].pages, ...(BUILTIN_ROLES[user.role].dynamic ? dyn : [])]);
     write = BUILTIN_ROLES[user.role].write;
+    if (EDITABLE_BUILTIN.has(user.role)) {   // an administrator customised this built-in role
+      const { rows } = await db.query('SELECT pages, can_write FROM builtin_role_overrides WHERE name = $1', [user.role]);
+      if (rows[0]) { pages = new Set(rows[0].pages.filter((p) => valid.has(p))); write = rows[0].can_write; }
+    }
   } else {
     const { rows } = await db.query('SELECT pages, can_write FROM roles WHERE name = $1', [user.role]);
     pages = new Set((rows[0] ? rows[0].pages : []).filter((p) => valid.has(p)));
@@ -57,8 +61,8 @@ const requirePageAccess = (pageKey) => (req, res, next) => {
 
 /** Re-checks the flag in the DB on every call (not trusting anything cached). */
 const requirePasswordAccess = asyncHandler(async (req, res, next) => {
-  const { rows } = await db.query('SELECT can_view_passwords FROM users WHERE id = $1 AND is_active', [req.user.id]);
-  if (!rows[0] || !rows[0].can_view_passwords) return res.status(403).json({ error: 'You are not allowed to view passwords' });
+  const { rows } = await db.query('SELECT can_view_passwords, role FROM users WHERE id = $1 AND is_active', [req.user.id]);
+  if (!rows[0] || !(rows[0].can_view_passwords || rows[0].role === 'superadmin'))   // the superadmin always may return res.status(403).json({ error: 'You are not allowed to view passwords' });
   next();
 });
 

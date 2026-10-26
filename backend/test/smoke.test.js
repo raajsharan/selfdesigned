@@ -77,18 +77,22 @@ test('login and profile', async () => {
   assert.equal((await api('GET', '/auth/me')).status, 401);
 });
 
-test('roles: users are created, superadmin is hidden from non-superadmins', async () => {
+test('roles: users are created, the superadmin is a hidden account', async () => {
   const pw = 'Passw0rdOK';
   assert.equal((await api('POST', '/users', { token: S.su, body: { email: `admin-${run}@example.com`, password: pw, role: 'admin', can_view_passwords: true } })).status, 201);
   assert.equal((await api('POST', '/users', { token: S.su, body: { email: `view-${run}@example.com`, password: pw, role: 'viewer' } })).status, 201);
   assert.equal((await api('POST', '/users', { token: S.su, body: { email: `weak-${run}@example.com`, password: 'short', role: 'viewer' } })).status, 400);
   S.admin = (await api('POST', '/auth/login', { body: { email: `admin-${run}@example.com`, password: pw } })).json.token;
   S.viewer = (await api('POST', '/auth/login', { body: { email: `view-${run}@example.com`, password: pw } })).json.token;
-  const list = await api('GET', '/users', { token: S.admin });
-  assert.ok(!list.json.some((u) => u.role === 'superadmin'), 'superadmin leaked to admin');
-  const su = (await api('GET', '/users', { token: S.su })).json.find((u) => u.role === 'superadmin');
-  assert.equal((await api('PUT', `/users/${su.id}`, { token: S.admin, body: { full_name: 'x' } })).status, 404);
+  for (const token of [S.admin, S.su]) {
+    assert.ok(!(await api('GET', '/users', { token })).json.some((u) => u.role === 'superadmin'), 'superadmin is listed');
+    assert.ok(!(await api('GET', '/roles', { token })).json.roles.some((r) => r.name === 'superadmin'), 'superadmin role is listed');
+  }
+  const su = (await api('GET', '/auth/me', { token: S.su })).json.user;
+  for (const token of [S.admin, S.su]) assert.equal((await api('PUT', `/users/${su.id}`, { token, body: { full_name: 'x' } })).status, 404);
+  assert.equal((await api('DELETE', `/users/${su.id}`, { token: S.su })).status, 404);
   assert.equal((await api('POST', '/users', { token: S.admin, body: { email: `esc-${run}@example.com`, password: pw, role: 'superadmin' } })).status, 403);
+  assert.equal((await api('POST', '/users', { token: S.su, body: { email: `esc2-${run}@example.com`, password: pw, role: 'superadmin' } })).status, 403);
   assert.equal((await api('GET', '/users', { token: S.viewer })).status, 403);
 });
 

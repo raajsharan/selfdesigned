@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { BUILTIN_ROLES } = require('../config/pages');
+const { BUILTIN_ROLES, EDITABLE_BUILTIN } = require('../config/pages');
 const { allPageKeys } = require('../services/pageService');
 const { audit } = require('../services/auditService');
 const { bad, notFound, conflict } = require('../utils/httpError');
@@ -8,11 +8,19 @@ const cleanPages = (arr, valid) => [...new Set((arr || []).filter((p) => valid.h
 
 exports.list = async (req, res) => {
   const { keys, dynamic } = await allPageKeys();
+  const overrides = Object.fromEntries((await db.query('SELECT name, description, pages, can_write FROM builtin_role_overrides')).rows.map((r) => [r.name, r]));
+  const counts = Object.fromEntries((await db.query('SELECT role, COUNT(*)::int AS n FROM users GROUP BY role')).rows.map((r) => [r.role, r.n]));
+  const valid = new Set(keys);
   const builtin = Object.entries(BUILTIN_ROLES)
-    .filter(([name]) => name !== 'superadmin' || req.user.isSuper)
-    .map(([name, r]) => ({ name, label: r.label, pages: [...r.pages, ...(r.dynamic ? dynamic.map((d) => d.key) : [])], can_write: r.write, builtin: true }));
+    .filter(([name]) => name !== 'superadmin')   // hidden account: its role is never listed
+    .map(([name, r]) => {
+      const o = EDITABLE_BUILTIN.has(name) ? overrides[name] : null;
+      return { name, label: r.label, builtin: true, editable: EDITABLE_BUILTIN.has(name), customized: !!o, users: counts[name] || 0,
+        description: o?.description || null,
+        pages: o ? o.pages.filter((p) => valid.has(p)) : [...r.pages, ...(r.dynamic ? dynamic.map((d) => d.key) : [])], can_write: o ? o.can_write : r.write };
+    });
   const { rows } = await db.query('SELECT id, name, description, pages, can_write FROM roles ORDER BY name');
-  res.json({ roles: [...builtin, ...rows.map((r) => ({ ...r, label: r.name, builtin: false }))], pages: keys, dynamic_pages: dynamic });
+  res.json({ roles: [...builtin, ...rows.map((r) => ({ ...r, label: r.name, builtin: false, editable: true, users: counts[r.name] || 0 }))], pages: keys, dynamic_pages: dynamic });
 };
 
 exports.create = async (req, res) => {
@@ -34,6 +42,27 @@ exports.update = async (req, res) => {
   if (!rows[0]) throw notFound('Role not found');
   audit(req, 'update', 'role', rows[0].id, { name: rows[0].name });
   res.json(rows[0]);
+};
+
+/** Customise a built-in role (asset_manager, viewer). Admin and Superadmin are fixed. */
+exports.updateBuiltin = async (req, res) => {
+  const { name } = req.params;
+  if (!EDITABLE_BUILTIN.has(name)) throw bad('This built-in role cannot be changed');
+  const valid = new Set((await allPageKeys()).keys);
+  await db.query(
+    `INSERT INTO builtin_role_overrides (name, description, pages, can_write) VALUES ($1,$2,$3,$4)
+     ON CONFLICT (name) DO UPDATE SET description = $2, pages = $3, can_write = $4, updated_at = now()`,
+    [name, req.body.description || null, JSON.stringify(cleanPages(req.body.pages, valid)), !!req.body.can_write]);
+  audit(req, 'update', 'role', null, { name, builtin: true });
+  res.json({ ok: true });
+};
+
+/** Back to the built-in defaults. */
+exports.resetBuiltin = async (req, res) => {
+  if (!EDITABLE_BUILTIN.has(req.params.name)) throw bad('This built-in role cannot be changed');
+  await db.query('DELETE FROM builtin_role_overrides WHERE name = $1', [req.params.name]);
+  audit(req, 'reset', 'role', null, { name: req.params.name, builtin: true });
+  res.json({ ok: true });
 };
 
 exports.remove = async (req, res) => {

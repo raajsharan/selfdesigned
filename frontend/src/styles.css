@@ -94,3 +94,12 @@ body { -webkit-font-smoothing: antialiased; }
 .hdr-clock b { display: block; font-size: 18px; letter-spacing: 1px; color: #1d2c2f; }
 .hdr-clock span { font-size: 12px; color: #5d6b6e; }
 @media (max-width: 900px) { .prof-wrap { grid-template-columns: 1fr; padding: 12px; } .prof-grid { grid-template-columns: 1fr; } .prof-card { padding: 20px; } .hdr-clock { display: none; } }
+
+/* ---- Roles ---- */
+.role-pages { font-size: 12px; color: #5d6b6e; }
+.role-picker { max-height: 52vh; overflow: auto; display: grid; gap: 12px; padding-right: 4px; }
+.role-group { border: 1px solid #e3e8ea; border-radius: 6px; padding: 10px 12px; }
+.role-group-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.role-group-body { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
+.role-group-body .ant-checkbox-wrapper { margin: 0 !important; }
+@media (max-width: 640px) { .role-group-body { grid-template-columns: 1fr; } }

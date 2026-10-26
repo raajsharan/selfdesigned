@@ -102,11 +102,13 @@ BASE_URL=http://localhost:4000 TEST_EMAIL=you@example.com TEST_PASSWORD='...' np
 
 | Role | Access |
 |---|---|
-| Superadmin | Everything. Hidden from every non-superadmin at every API layer; cannot be deleted or deactivated |
+| Superadmin | God access: every page, write access and password reveal, whatever the role settings say. A **hidden account**: never listed in Users, User Page Control or Roles (not even to itself), and cannot be edited, deleted or assigned through the UI or API. Created at startup from `SUPERADMIN_*`; it manages its own name and password on the profile page |
 | Admin | Everything except superadmin management |
 | Asset Manager | All operational pages, read/write; no Administration pages |
 | Viewer | Read-only inventory, discovery, migration, reports |
 | Custom roles | Pick pages and whether the role can change data |
+
+**Editing roles** (Admin → Roles): every role has an *Edit* button. Custom roles are fully editable. **Asset Manager** and **Viewer** can be customised (pages and *can change data*, stored in `builtin_role_overrides`) and put back with *Reset*; once customised, pages designed later must be ticked by hand. **Admin** and **Superadmin** are fixed so nobody can be locked out. A custom role cannot be deleted while users still have it.
 
 Per-user overrides (User Page Control) can force a page on or off and grant `can_view_passwords`. Access is re-read from the database on every request, so revoking takes effect immediately.
 
