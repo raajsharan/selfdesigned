@@ -47,9 +47,9 @@ export default function PagesAdmin() {
         {(pages || []).map((p, i) => { const Icon = iconFor(p.icon); return (
           <div key={p.id}>
             <DropZone accept={(d) => d.kind === 'page'} onDrop={(d) => reorder(d.index, i)} style={{ height: 6 }} />
-            <Draggable payload={{ kind: 'page', index: i }} className="canvas-item" style={{ padding: '10px 12px', background: '#fff' }}>
+            <Draggable payload={{ kind: 'page', index: i }} className="canvas-item" style={{ padding: '10px 12px', background: 'var(--surface)' }}>
               <Icon style={{ fontSize: 16 }} />
-              <div style={{ flex: 1, minWidth: 0 }}><b>{p.title}</b> <span className="mono" style={{ color: '#7a8a8e' }}>/p/{p.slug}</span><div style={{ color: '#5d6b6e', fontSize: 12 }}>{p.description || (p.kind === 'view' ? 'Combines the records of other pages' : 'Holds its own records')}</div></div>
+              <div style={{ flex: 1, minWidth: 0 }}><b>{p.title}</b> <span className="mono" style={{ color: 'var(--muted-2)' }}>/p/{p.slug}</span><div style={{ color: 'var(--muted)', fontSize: 12 }}>{p.description || (p.kind === 'view' ? 'Combines the records of other pages' : 'Holds its own records')}</div></div>
               <Tag color={p.kind === 'view' ? 'purple' : 'blue'}>{p.kind === 'view' ? 'view' : 'records'}</Tag>
               <Space size={4}>
                 <Button size="small" icon={<EditOutlined />} onClick={() => nav(`/admin/pages/${p.slug}`)}>Design</Button>

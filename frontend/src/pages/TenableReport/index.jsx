@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePages } from '../../context/PagesContext';
 import PageHeader, { Stat } from '../../components/PageHeader';
 
-const sev = (t) => t && <span>{[['C', t.critical, '#cf1322'], ['H', t.high, '#d46b08'], ['M', t.medium, '#c77700'], ['L', t.low, '#5d6b6e']].map(([l, n, c]) => <span key={l} style={{ color: n ? c : '#b5bfc1', marginRight: 8 }}><b>{l}</b> {n}</span>)}</span>;
+const sev = (t) => t && <span>{[['C', t.critical, '#cf1322'], ['H', t.high, '#d46b08'], ['M', t.medium, '#c77700'], ['L', t.low, 'var(--muted)']].map(([l, n, c]) => <span key={l} style={{ color: n ? c : 'var(--faint)', marginRight: 8 }}><b>{l}</b> {n}</span>)}</span>;
 
 export default function TenableReport() {
   const { message } = App.useApp(); const { user } = useAuth(); const { pages, bySlug } = usePages();
@@ -38,7 +38,7 @@ export default function TenableReport() {
       ]} />
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="Import Tenable export" width={460}>
         <p>Upload an .xlsx export from Tenable. Recognised columns: Name / DNS Name / Hostname, IP Address, MAC Address, Operating System, Critical, High, Medium, Low, Last Seen.</p>
-        <p style={{ color: '#5d6b6e' }}>The new file replaces the current Tenable data used by this report. Earlier imports are kept.</p>
+        <p style={{ color: 'var(--muted)' }}>The new file replaces the current Tenable data used by this report. Earlier imports are kept.</p>
         <Upload.Dragger accept=".xlsx" maxCount={1} showUploadList={false} disabled={busy} beforeUpload={upload}><p>{busy ? 'Importing...' : 'Drop the file here or click to choose'}</p></Upload.Dragger>
       </Drawer>
     </div>

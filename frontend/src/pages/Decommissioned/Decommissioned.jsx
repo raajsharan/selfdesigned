@@ -26,11 +26,11 @@ export default function Decommissioned() {
       </div>
       <Table rowKey="id" size="small" loading={loading} dataSource={rows} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }}
         columns={[
-          { title: 'Asset', dataIndex: 'asset_name' }, { title: 'Page', render: (_, r) => r.source_title || <span style={{ color: '#9aa7a9' }}>{r.source} (deleted)</span> },
+          { title: 'Asset', dataIndex: 'asset_name' }, { title: 'Page', render: (_, r) => r.source_title || <span style={{ color: 'var(--faint)' }}>{r.source} (deleted)</span> },
           { title: 'Released tag', dataIndex: 'asset_tag', render: (v) => v || '-' }, { title: 'Released IP', dataIndex: 'ip_address', render: (v) => v || '-' },
           { title: 'Reason', dataIndex: 'reason', ellipsis: true, render: (v) => v || '-' },
-          { title: 'Decommissioned', render: (_, r) => <span>{dayjs(r.decommissioned_at).format('D MMM YYYY HH:mm')}<br /><span style={{ color: '#5d6b6e', fontSize: 12 }}>by {r.decommissioned_by_email}</span></span> },
-          { title: 'Status', render: (_, r) => r.reactivated_at ? <span><Tag color="green">Reactivated</Tag><br /><span style={{ color: '#5d6b6e', fontSize: 12 }}>{dayjs(r.reactivated_at).format('D MMM YYYY')} by {r.reactivated_by_email}</span></span> : <Tag color="red">Decommissioned</Tag> },
+          { title: 'Decommissioned', render: (_, r) => <span>{dayjs(r.decommissioned_at).format('D MMM YYYY HH:mm')}<br /><span style={{ color: 'var(--muted)', fontSize: 12 }}>by {r.decommissioned_by_email}</span></span> },
+          { title: 'Status', render: (_, r) => r.reactivated_at ? <span><Tag color="green">Reactivated</Tag><br /><span style={{ color: 'var(--muted)', fontSize: 12 }}>{dayjs(r.reactivated_at).format('D MMM YYYY')} by {r.reactivated_by_email}</span></span> : <Tag color="red">Decommissioned</Tag> },
           ...(canWrite ? [{ title: '', render: (_, r) => !r.reactivated_at && <Popconfirm title="Reactivate this asset?" description="Its tag and IP are reclaimed if still free." onConfirm={() => reactivate(r)}><Button size="small" icon={<UndoOutlined />}>Reactivate</Button></Popconfirm> }] : []),
         ]} />
     </div>

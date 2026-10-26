@@ -21,7 +21,7 @@ export default function NavOrder() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
         {groups.map((g, gi) => <div className="card" key={g.group}><b>{g.group}</b><div style={{ marginTop: 8 }}>
           {g.items.map((i) => <div key={i.key} className={`drag-item ${over === i.key ? 'over' : ''}`} draggable onDragStart={() => setDrag({ gi, key: i.key })} onDragOver={(e) => { e.preventDefault(); setOver(i.key); }} onDragEnd={() => { setDrag(null); setOver(null); }} onDrop={() => { drop(gi, i.key); setDrag(null); setOver(null); }}>
-            <HolderOutlined style={{ color: '#9aa7a9' }} /><i.icon /> {i.label}</div>)}</div></div>)}
+            <HolderOutlined style={{ color: 'var(--faint)' }} /><i.icon /> {i.label}</div>)}</div></div>)}
       </div>
     </div>
   );

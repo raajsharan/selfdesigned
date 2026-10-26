@@ -18,7 +18,7 @@ export default function RecordView({ page, record, open, onClose }) {
   const byRole = (role) => cfg.fields.find((f) => f.role === role);
   const val = (f) => (f ? d[f.key] : undefined);
   const empty = (v) => v === undefined || v === null || v === '';
-  const dash = <span style={{ color: '#9aa7a9' }}>-</span>;
+  const dash = <span style={{ color: 'var(--faint)' }}>-</span>;
   const copy = (text) => { navigator.clipboard?.writeText(String(text)).then(() => message.success('Copied'), () => message.error('Copy failed')); };
 
   const toggleSecret = async (key) => {
@@ -29,7 +29,7 @@ export default function RecordView({ page, record, open, onClose }) {
   const show = (f) => {
     if (f.type === 'password') {
       if (!record.secret_keys.includes(f.key)) return dash;
-      if (!user.can_view_passwords) return <span style={{ color: '#5d6b6e' }}>Stored (you do not have permission to view it)</span>;
+      if (!user.can_view_passwords) return <span style={{ color: 'var(--muted)' }}>Stored (you do not have permission to view it)</span>;
       const shown = pw[f.key] !== undefined;
       return (<span className="rv-secret">
         <span className="mono">{shown ? (pw[f.key] || '(empty)') : '••••••••'}</span>

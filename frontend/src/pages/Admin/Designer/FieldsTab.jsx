@@ -16,12 +16,12 @@ function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
     <div className="field-card-body">
       <div style={row}>
         <label>Label<Input value={f.label} onChange={(e) => { const label = e.target.value; upd({ label }); if (f._auto) rename(f.key, keyFrom(label, new Set(others.map((x) => x.key)))); }} /></label>
-        <label>Key <span style={{ color: '#7a8a8e' }}>{locked ? '(fixed: records already use it)' : '(used in imports and the API)'}</span>
+        <label>Key <span style={{ color: 'var(--muted-2)' }}>{locked ? '(fixed: records already use it)' : '(used in imports and the API)'}</span>
           <Input className="mono" value={f.key} disabled={locked} onChange={(e) => { upd({ _auto: false }); rename(f.key, e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); }} /></label>
       </div>
       <div style={row}>
         <label>Type<Select style={{ width: '100%' }} value={f.type} onChange={(type) => upd({ type, ...(type === 'password' ? { role: undefined, unique: false } : {}) })} options={meta.types.map((t) => ({ value: t, label: TYPE_LABEL[t] || t }))} /></label>
-        <label>Meaning <span style={{ color: '#7a8a8e' }}>(lets reports, uniqueness and decommission find this field)</span>
+        <label>Meaning <span style={{ color: 'var(--muted-2)' }}>(lets reports, uniqueness and decommission find this field)</span>
           <Select style={{ width: '100%' }} allowClear placeholder="None" disabled={f.type === 'password'} value={f.role} onChange={(role) => upd({ role })}
             options={meta.roles.map((r) => ({ value: r.key, label: r.label, disabled: usedRoles.has(r.key) }))} /></label>
       </div>
@@ -40,7 +40,7 @@ function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
                 options={categories.map((c) => ({ value: c }))} />
             : <Select mode="tags" style={{ width: '100%' }} placeholder="Type an option and press Enter" value={f.options || []} onChange={(options) => upd({ options })} tokenSeparators={[',']} />}
           {f.optionsCategory !== undefined && (
-            <label style={{ display: 'block', marginTop: 8 }}>Depends on <span style={{ color: '#7a8a8e' }}>(only list values linked to the choice in another field, e.g. OS Version by OS Type; set each value's “Parent value” in Dropdown Master)</span>
+            <label style={{ display: 'block', marginTop: 8 }}>Depends on <span style={{ color: 'var(--muted-2)' }}>(only list values linked to the choice in another field, e.g. OS Version by OS Type; set each value's “Parent value” in Dropdown Master)</span>
               <Select allowClear style={{ width: '100%' }} placeholder="No (show the whole list)" value={f.dependsOn}
                 options={others.filter((x) => x.type === 'select').map((x) => ({ value: x.key, label: x.label }))} onChange={(dependsOn) => upd({ dependsOn })} /></label>)}
         </div>)}
@@ -74,7 +74,7 @@ export default function FieldsTab({ config, setConfig, meta, categories, lockedK
           <div className="field-card">
             <Draggable payload={{ kind: 'field-order', index: i }} className="field-card-head" style={{ cursor: 'grab' }}>
               <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setOpen(open === f.key ? null : f.key)}>
-                <b>{f.label}</b><span className="mono" style={{ color: '#7a8a8e' }}>{f.key}</span><Tag>{TYPE_LABEL[f.type]}</Tag>
+                <b>{f.label}</b><span className="mono" style={{ color: 'var(--muted-2)' }}>{f.key}</span><Tag>{TYPE_LABEL[f.type]}</Tag>
                 {f.role && <Tag color="blue">{meta.roles.find((r) => r.key === f.role)?.label}</Tag>}{f.required && <Tag color="red">required</Tag>}{f.unique && <Tag>unique</Tag>}{f.showIf && <Tag>conditional</Tag>}
               </span>
               <Popconfirm title={`Remove “${f.label}”?`} description={lockedKeys.has(f.key) ? 'Existing records keep the stored value, but it will no longer be shown anywhere.' : 'It will also be removed from the form and table.'} okButtonProps={{ danger: true }} onConfirm={() => remove(f.key)}>

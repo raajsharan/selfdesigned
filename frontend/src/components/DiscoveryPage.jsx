@@ -80,7 +80,7 @@ export default function DiscoveryPage({ type, title, sub }) {
       <Table rowKey="id" size="small" dataSource={d.drift.rows} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }}
         columns={[{ title: 'VM', dataIndex: 'name' }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'Server', dataIndex: 'server_name' },
           { title: 'Result', render: (_, r) => r.status === 'not_in_inventory' ? <Tag color="orange">Not in inventory</Tag> : <Tag color="gold">{r.issues.join('; ')}</Tag> }]} /></>) },
-    { key: 'topology', label: 'Topology', children: !d.topology ? null : <Tree showLine defaultExpandAll selectable={false} treeData={d.topology.map((dc) => ({ key: dc.name, title: <b>{dc.name} <span style={{ color: '#5d6b6e', fontWeight: 400 }}>({dc.vms} VMs)</span></b>,
+    { key: 'topology', label: 'Topology', children: !d.topology ? null : <Tree showLine defaultExpandAll selectable={false} treeData={d.topology.map((dc) => ({ key: dc.name, title: <b>{dc.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({dc.vms} VMs)</span></b>,
       children: dc.clusters.map((cl) => ({ key: `${dc.name}/${cl.name}`, title: `${cl.name} (${cl.vms} VMs)`, children: cl.hosts.map((h) => ({ key: `${dc.name}/${cl.name}/${h.name}`, title: `${h.name}: ${h.vms} VMs${h.off ? `, ${h.off} off` : ''}` })) })) }))} /> },
     { key: 'snapshots', label: 'Snapshots', children: !d.snapshots ? null : (<>
       {d.snapshots.note && <div className="warn-banner">{d.snapshots.note}</div>}

@@ -15,7 +15,7 @@ function PageGroup({ title, options, value, onChange }) {
     <div className="role-group">
       <div className="role-group-head">
         <Checkbox checked={picked.length === keys.length} indeterminate={picked.length > 0 && picked.length < keys.length} onChange={(e) => set(e.target.checked)}><b>{title}</b></Checkbox>
-        <span style={{ color: '#7a8a8e', fontSize: 12 }}>{picked.length} / {keys.length}</span>
+        <span style={{ color: 'var(--muted-2)', fontSize: 12 }}>{picked.length} / {keys.length}</span>
       </div>
       <Checkbox.Group value={value.filter((k) => keys.includes(k))} options={options} className="role-group-body"
         onChange={(sel) => onChange([...value.filter((k) => !keys.includes(k)), ...sel])} />
@@ -50,7 +50,7 @@ export default function Roles() {
   const columns = [
     { title: 'Role', render: (_, r) => (
       <div><b>{r.label || r.name}</b> {r.builtin && <Tag>built-in</Tag>}{r.customized && <Tag color="blue">customised</Tag>}
-        {r.description && <div style={{ fontSize: 12, color: '#7a8a8e' }}>{r.description}</div>}</div>) },
+        {r.description && <div style={{ fontSize: 12, color: 'var(--muted-2)' }}>{r.description}</div>}</div>) },
     { title: 'Users', dataIndex: 'users', width: 70, render: (n) => n || 0 },
     { title: 'Can change data', dataIndex: 'can_write', width: 130, render: (v) => (v ? <Tag color="green">Yes</Tag> : <Tag>No</Tag>) },
     { title: 'Pages', render: (_, r) => {
@@ -67,7 +67,7 @@ export default function Roles() {
             ? <Tooltip title={`${r.users} user(s) still have this role`}><Button size="small" danger icon={<DeleteOutlined />} disabled>Delete</Button></Tooltip>
             : <Popconfirm title="Delete this role?" okButtonProps={{ danger: true }} onConfirm={() => act(api.delete(`/roles/${r.id}`), 'Deleted')}><Button size="small" danger icon={<DeleteOutlined />}>Delete</Button></Popconfirm>)}
         </Space>
-      : <Tooltip title="Always has full access so an administrator can never be locked out"><span style={{ color: '#7a8a8e' }}><LockOutlined /> Fixed</span></Tooltip>) },
+      : <Tooltip title="Always has full access so an administrator can never be locked out"><span style={{ color: 'var(--muted-2)' }}><LockOutlined /> Fixed</span></Tooltip>) },
   ];
 
   return (
@@ -84,7 +84,7 @@ export default function Roles() {
           <Form.Item name="pages" label="Pages this role can open" valuePropName="value" trigger="onChange" style={{ marginBottom: 0 }}>
             <PagePicker groups={groups} />
           </Form.Item>
-          {edit?.builtin && <div style={{ color: '#7a8a8e', fontSize: 12, marginTop: 8 }}>Pages designed later are not added automatically once you customise this role; tick them here.</div>}
+          {edit?.builtin && <div style={{ color: 'var(--muted-2)', fontSize: 12, marginTop: 8 }}>Pages designed later are not added automatically once you customise this role; tick them here.</div>}
         </Form>
       </Modal>
     </div>

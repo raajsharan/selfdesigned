@@ -43,7 +43,7 @@ export default function RecordsPage({ page }) {
         render: (_, r) => {
           const v = meta ? meta.get(r) : r.data[c.key];
           if (meta) return dayjs(v).format('D MMM YYYY HH:mm');
-          if (v === undefined || v === null || v === '') return <span style={{ color: '#b5bfc1' }}>-</span>;
+          if (v === undefined || v === null || v === '') return <span style={{ color: 'var(--faint)' }}>-</span>;
           if (f.type === 'boolean') return v ? 'Yes' : 'No';
           if (f.type === 'date') return dayjs(v).format('D MMM YYYY');
           if (f.role === 'status') return <Tag color={statusColor(String(v))}>{v}</Tag>;
@@ -91,7 +91,7 @@ export default function RecordsPage({ page }) {
           <Select value={t.filters.show} style={{ width: 190 }} onChange={(v) => t.setFilter({ show: v })} options={[{ value: 'active', label: 'Active only' }, { value: 'decommissioned', label: 'Decommissioned only' }, { value: 'all', label: 'Active + decommissioned' }]} />
         </div>
         {sel.length > 0 && canWrite && (
-          <div className="toolbar" style={{ background: '#e8f3f4', padding: '8px 12px', borderRadius: 6 }}>
+          <div className="toolbar" style={{ background: 'var(--surface-2)', padding: '8px 12px', borderRadius: 6 }}>
             <b>{sel.length} selected</b>
             {statusField && <Select placeholder={`Set ${statusField.label.toLowerCase()}`} style={{ width: 180 }} value={null} options={optionsOf(statusField, dd)} onChange={(v) => modal.confirm({ title: `Set ${statusField.label} to "${v}" for ${sel.length} record(s)?`, onOk: () => bulk('status', v) })} />}
             {canTags && <Button onClick={() => modal.confirm({ title: `Assign tags to ${sel.length} untagged record(s)?`, content: 'Each record gets the next free tag from its department range (Admin → Department Tag Ranges).', onOk: () => bulk('assign_tags') })}>Assign tags</Button>}

@@ -40,9 +40,9 @@ export default function FormTab({ config, setConfig, dropdowns }) {
     <div className="designer-grid">
       <DropZone accept={(d) => d.kind === 'field' && d.from} onDrop={(d) => setSections((s) => detach(s, d.key))} className="designer-pane">
         <b>Not on the form</b>
-        <div style={{ color: '#5d6b6e', fontSize: 12, margin: '2px 0 10px' }}>Drag a field into a section. Drag one back here to remove it.</div>
+        <div style={{ color: 'var(--muted)', fontSize: 12, margin: '2px 0 10px' }}>Drag a field into a section. Drag one back here to remove it.</div>
         {palette.map((f) => <Draggable key={f.key} payload={{ kind: 'field', key: f.key, from: null }} className="chip" handle>{f.label}{f.required && <b style={{ color: '#cf1322' }}>*</b>}</Draggable>)}
-        {!palette.length && <div style={{ color: '#9aa7a9', fontSize: 13 }}>Every field is on the form.</div>}
+        {!palette.length && <div style={{ color: 'var(--faint)', fontSize: 13 }}>Every field is on the form.</div>}
         {palette.length > 0 && <div style={{ marginTop: 8 }}><Button size="small" onClick={placeAll}>Place all remaining fields</Button></div>}
       </DropZone>
 
@@ -63,14 +63,14 @@ export default function FormTab({ config, setConfig, dropdowns }) {
                 {s.items.map((it) => { const f = fields[it.key]; if (!f) return null; return (
                   <DropZone key={it.key} accept={(d) => d.kind === 'field' && d.key !== it.key} onDrop={(d) => place(d, s.id, it.key)} style={{ gridColumn: `span ${Math.min(it.span || 1, s.columns)}` }}>
                     <Draggable payload={{ kind: 'field', key: it.key, from: s.id }} className="canvas-item">
-                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}{f.required && <b style={{ color: '#cf1322' }}> *</b>}<span style={{ color: '#7a8a8e', fontSize: 11, marginLeft: 6 }}>{f.type}</span></span>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}{f.required && <b style={{ color: '#cf1322' }}> *</b>}<span style={{ color: 'var(--muted-2)', fontSize: 11, marginLeft: 6 }}>{f.type}</span></span>
                       {s.columns > 1 && <Select size="small" variant="borderless" value={it.span || 1} style={{ width: 92 }} onChange={(span) => patchItem(s.id, it.key, { span })} options={Array.from({ length: s.columns }, (_, n) => ({ value: n + 1, label: `${n + 1} col${n ? 's' : ''} wide` }))} aria-label="Width" />}
                       <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => nudge(s.id, it.key, -1)} aria-label="Move earlier" />
                       <Button size="small" type="text" icon={<ArrowRightOutlined />} onClick={() => nudge(s.id, it.key, 1)} aria-label="Move later" />
                       <Button size="small" type="text" icon={<CloseOutlined />} onClick={() => setSections((secs) => detach(secs, it.key))} aria-label={`Remove ${f.label} from form`} />
                     </Draggable>
                   </DropZone>); })}
-                <DropZone accept={(d) => d.kind === 'field'} onDrop={(d) => place(d, s.id, null)} style={{ gridColumn: '1 / -1', minHeight: 34, border: '1px dashed #cfd9dc', display: 'grid', placeItems: 'center', color: '#9aa7a9', fontSize: 12 }}>
+                <DropZone accept={(d) => d.kind === 'field'} onDrop={(d) => place(d, s.id, null)} style={{ gridColumn: '1 / -1', minHeight: 34, border: '1px dashed var(--border-2)', display: 'grid', placeItems: 'center', color: 'var(--faint)', fontSize: 12 }}>
                   {s.items.length ? 'Drop here to add to the end' : 'Drop fields here'}</DropZone>
               </div>
             </div>

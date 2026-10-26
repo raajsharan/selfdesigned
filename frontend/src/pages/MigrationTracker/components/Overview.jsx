@@ -15,7 +15,7 @@ export default function Overview({ project, refreshKey }) {
       <div className="card" style={{ marginBottom: 16 }}>
         <b>Overall progress</b>
         <Progress percent={d.progress_percent} strokeColor={d.vms.blocked + d.hosts.blocked ? '#d46b08' : undefined} style={{ marginTop: 8 }} />
-        <span style={{ color: '#5d6b6e', fontSize: 13 }}>Counts each host and each VM as one unit.{d.vms.blocked + d.hosts.blocked > 0 && <b style={{ color: '#d46b08' }}> {d.vms.blocked + d.hosts.blocked} blocked.</b>}</span>
+        <span style={{ color: 'var(--muted)', fontSize: 13 }}>Counts each host and each VM as one unit.{d.vms.blocked + d.hosts.blocked > 0 && <b style={{ color: '#d46b08' }}> {d.vms.blocked + d.hosts.blocked} blocked.</b>}</span>
       </div>
       <div className="stat-grid">
         <Stat label="Hosts" value={d.hosts.total} /><Stat label="Hosts migrated" value={d.hosts.migrated} tone="good" /><Stat label="Hosts blocked" value={d.hosts.blocked} tone={d.hosts.blocked ? 'bad' : ''} />

@@ -66,7 +66,7 @@ export default function PageDesigner() {
       <label>Icon<Select style={{ width: '100%' }} value={draft.icon} onChange={(icon) => setDraft({ ...draft, icon })} options={Object.keys(PAGE_ICONS).map((k) => { const I = PAGE_ICONS[k]; return { value: k, label: <span><I /> {k}</span> }; })} /></label>
       <label>Address<Input disabled value={`/p/${draft.slug}`} className="mono" /></label>
       {!isView && <div><Switch checked={c.reconcile !== false} onChange={(v) => setConfig((x) => ({ ...x, reconcile: v }))} /> <span style={{ marginLeft: 8 }}>Include in “In inventory, not discovered” checks on the Reconcile page</span>
-        <div style={{ color: '#5d6b6e', fontSize: 12, marginTop: 4 }}>Turn off for things that are not virtual machines, such as physical servers or licences.</div></div>}
+        <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>Turn off for things that are not virtual machines, such as physical servers or licences.</div></div>}
     </div>
   );
 

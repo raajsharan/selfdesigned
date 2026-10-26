@@ -36,7 +36,7 @@ export default function ImportModal({ page, open, onClose, onDone }) {
       {!plan ? (
         <Upload.Dragger accept=".xlsx" maxCount={1} showUploadList={false} disabled={busy} beforeUpload={(f) => { preview(f); return false; }}>
           <p className="ant-upload-drag-icon"><InboxOutlined /></p><p>Drop an .xlsx file here, or click to choose one</p>
-          <p style={{ color: '#5d6b6e', fontSize: 12 }}>Column headings must match this page's field labels. Rows are matched to existing records by asset tag, then MAC address, then any field marked unique.</p>
+          <p style={{ color: 'var(--muted)', fontSize: 12 }}>Column headings must match this page's field labels. Rows are matched to existing records by asset tag, then MAC address, then any field marked unique.</p>
         </Upload.Dragger>
       ) : (<>
         <Alert type={plan.summary.error ? 'warning' : 'success'} showIcon style={{ marginBottom: 12 }} message={`${plan.summary.create} to create, ${plan.summary.merge} to merge, ${plan.summary.error} with errors`}

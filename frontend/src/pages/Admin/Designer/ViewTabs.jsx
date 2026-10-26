@@ -25,7 +25,7 @@ export function SourcesTab({ config, setConfig, recordPages }) {
       {!recordPages.length && <Alert type="warning" showIcon message="There are no records pages yet" description="Create at least one records page first." />}
       <div className="designer-pane">
         <Checkbox.Group value={config.sources} onChange={(sources) => setConfig((c) => ({ ...c, sources }))} style={{ display: 'grid', gap: 8 }}
-          options={recordPages.map((p) => ({ value: p.slug, label: <span><b>{p.title}</b> <span className="mono" style={{ color: '#7a8a8e' }}>/p/{p.slug}</span></span> }))} />
+          options={recordPages.map((p) => ({ value: p.slug, label: <span><b>{p.title}</b> <span className="mono" style={{ color: 'var(--muted-2)' }}>/p/{p.slug}</span></span> }))} />
       </div>
     </div>
   );
@@ -72,7 +72,7 @@ export function ColumnsTab({ config, setConfig }) {
       {config.columns.map((c, i) => (
         <div key={c.id}>
           <DropZone accept={(d) => d.kind === 'vcol'} onDrop={(d) => reorder(d.index, i)} style={{ height: 6 }} />
-          <Draggable payload={{ kind: 'vcol', index: i }} className="canvas-item" style={{ background: '#fff', padding: '8px 10px' }}>
+          <Draggable payload={{ kind: 'vcol', index: i }} className="canvas-item" style={{ background: 'var(--surface)', padding: '8px 10px' }}>
             <Input size="small" style={{ width: 180 }} value={c.label} onChange={(e) => upd(c.id, { label: e.target.value })} aria-label="Column title" />
             {c.id === '_page' ? <Tag color="purple" style={{ flex: 1 }}>shows the page title</Tag>
               : <Select size="small" mode="tags" style={{ flex: 1, minWidth: 220 }} value={c.keys} placeholder="Field keys, in order of preference" onChange={(keys) => upd(c.id, { keys })} options={options} tokenSeparators={[',']} />}
@@ -89,7 +89,7 @@ export function ColumnsTab({ config, setConfig }) {
       {config.columns.length > 0 && (
         <div className="designer-pane" style={{ marginTop: 12, overflowX: 'auto' }}><b>Preview</b>
           <table className="preview-table" style={{ marginTop: 8, borderCollapse: 'collapse', width: '100%' }}><thead><tr>{config.columns.map((c) => <th key={c.id} style={{ minWidth: c.width }}>{c.label}</th>)}</tr></thead>
-            <tbody>{[0, 1].map((r) => <tr key={r}>{config.columns.map((c) => <td key={c.id} style={{ padding: '6px 10px', color: '#9aa7a9', borderBottom: '1px solid #eef2f3' }}>{c.id === '_page' ? 'Page title' : c.keys[0] || '…'}</td>)}</tr>)}</tbody></table></div>)}
+            <tbody>{[0, 1].map((r) => <tr key={r}>{config.columns.map((c) => <td key={c.id} style={{ padding: '6px 10px', color: 'var(--faint)', borderBottom: '1px solid var(--border)' }}>{c.id === '_page' ? 'Page title' : c.keys[0] || '…'}</td>)}</tr>)}</tbody></table></div>)}
     </div>
   );
 }

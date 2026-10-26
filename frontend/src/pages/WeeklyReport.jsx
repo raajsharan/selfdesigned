@@ -27,7 +27,7 @@ export default function WeeklyReport() {
       {s.status_breakdown && <div className="card" style={{ marginBottom: 16 }}><b>Status breakdown</b>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px,1fr))', gap: 16, marginTop: 8 }}>
           {d.inventories.map((i) => <div key={i.key}><div style={{ fontWeight: 500, marginBottom: 4 }}>{i.label}</div>
-            {i.statuses.length ? i.statuses.map((x) => <div key={x.status} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>{x.status} {d.excluded_statuses.includes(x.status) && <Tag>excluded</Tag>}</span><b>{x.n}</b></div>) : <span style={{ color: '#9aa7a9' }}>No assets</span>}</div>)}</div></div>}
+            {i.statuses.length ? i.statuses.map((x) => <div key={x.status} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>{x.status} {d.excluded_statuses.includes(x.status) && <Tag>excluded</Tag>}</span><b>{x.n}</b></div>) : <span style={{ color: 'var(--faint)' }}>No assets</span>}</div>)}</div></div>}
       {s.extended && <div className="card"><b>Extended inventory summary</b>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px,1fr))', gap: 16, marginTop: 8 }}>
           {[['os_type', 'By OS type'], ['department', 'By department'], ['location', 'By location'], ['patching_type', 'By patching type']].map(([k, h]) => <div key={k}><div style={{ fontWeight: 500, marginBottom: 4 }}>{h}</div>

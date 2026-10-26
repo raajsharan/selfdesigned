@@ -62,10 +62,10 @@ export function ColumnManager({ all, prefs }) {
   return (
     <Popover trigger="click" placement="bottomRight" title="Columns" content={
       <div style={{ width: 240, maxHeight: 360, overflow: 'auto' }}>
-        <div style={{ color: '#5d6b6e', fontSize: 12, marginBottom: 8 }}>Tick to show, drag to reorder. Saved on this device.</div>
+        <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 8 }}>Tick to show, drag to reorder. Saved on this device.</div>
         {prefs.order.map((k) => (
           <div key={k} className={`drag-item ${over === k ? 'over' : ''}`} draggable onDragStart={() => setDrag(k)} onDragOver={(e) => { e.preventDefault(); setOver(k); }} onDragEnd={() => { setDrag(null); setOver(null); }} onDrop={() => { drop(k); setDrag(null); setOver(null); }}>
-            <HolderOutlined style={{ color: '#9aa7a9' }} /><Checkbox checked={!prefs.hidden.has(k)} onChange={() => prefs.toggle(k)}>{title(k)}</Checkbox>
+            <HolderOutlined style={{ color: 'var(--faint)' }} /><Checkbox checked={!prefs.hidden.has(k)} onChange={() => prefs.toggle(k)}>{title(k)}</Checkbox>
           </div>))}
         <Button size="small" type="link" onClick={prefs.reset}>Reset to default</Button>
       </div>}>

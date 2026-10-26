@@ -13,7 +13,7 @@ export function Draggable({ payload, children, style, handle = true, className =
     <div draggable className={className} style={{ cursor: 'grab', ...style }}
       onDragStart={(e) => { current = payload; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'x'); e.stopPropagation(); }}
       onDragEnd={() => { current = null; }}>
-      {handle && <HolderOutlined style={{ color: '#9aa7a9', marginRight: 6 }} />}{children}
+      {handle && <HolderOutlined style={{ color: 'var(--faint)', marginRight: 6 }} />}{children}
     </div>
   );
 }
@@ -27,7 +27,7 @@ export function DropZone({ accept, onDrop, children, style, hint, className = ''
       onDragOver={(e) => { if (ok()) { e.preventDefault(); e.stopPropagation(); setOver(true); } }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { if (!ok()) return; e.preventDefault(); e.stopPropagation(); setOver(false); const p = current; current = null; onDrop(p); }}>
-      {children}{hint && !children && <span style={{ color: '#9aa7a9', fontSize: 12 }}>{hint}</span>}
+      {children}{hint && !children && <span style={{ color: 'var(--faint)', fontSize: 12 }}>{hint}</span>}
     </div>
   );
 }

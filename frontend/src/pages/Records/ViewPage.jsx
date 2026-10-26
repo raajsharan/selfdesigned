@@ -24,7 +24,7 @@ export default function ViewPage({ page }) {
     render: (_, r) => {
       if (c.id === '_page') return <Tag>{r.page_title}</Tag>;
       const v = firstValue(r.data, c.keys);
-      return v === null ? <span style={{ color: '#b5bfc1' }}>-</span> : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v);
+      return v === null ? <span style={{ color: 'var(--faint)' }}>-</span> : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v);
     } })), [cfg]);
 
   const sources = cfg.sources || [];

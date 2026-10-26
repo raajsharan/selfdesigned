@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal } from 'antd';
+import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal, Tooltip } from 'antd';
 import { KeyOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
+import { useThemeMode } from '../../context/ThemeContext';
 import { usePages } from '../../context/PagesContext';
 import { iconFor } from '../pageIcons';
 import { useBranding } from '../../context/BrandingContext';
@@ -10,6 +11,16 @@ import { orderedGroups, ALL_ITEMS } from '../../nav';
 import api, { errMsg } from '../../api/client';
 
 const { Sider, Header, Content } = Layout;
+
+const SUN = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>;
+const MOON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>;
+
+/** Light / dark switch for the header. Shows the icon of the mode it will switch to. */
+function ThemeToggle() {
+  const { mode, toggle } = useThemeMode();
+  const to = mode === 'dark' ? 'light' : 'dark';
+  return <Tooltip title={`Switch to ${to} theme`}><button type="button" className="theme-toggle" onClick={toggle} aria-label={`Switch to ${to} theme`}>{mode === 'dark' ? SUN : MOON}</button></Tooltip>;
+}
 
 /** Header clock: HH : MM and the long date, refreshed every 20 seconds. */
 function Clock() {
@@ -64,14 +75,15 @@ export default function AppLayout() {
           onClick={({ key }) => { if (key.startsWith('page:')) return nav(`/p/${key.slice(5)}`); const t = ALL_ITEMS.find((i) => i.key === key); if (t) nav(t.path); }} />
       </Sider>
       <Layout>
-        <Header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderBottom: '1px solid #e3e8ea', position: 'sticky', top: 0, zIndex: 5 }}>
+        <Header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 5 }}>
           <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setCollapsed(!collapsed)} aria-label="Toggle menu" />
           {has('search') && <Input.Search placeholder="Search all inventories (name, IP, MAC, tag)" allowClear style={{ maxWidth: 420 }}
             onSearch={(q) => q.trim().length >= 2 && nav(`/search?q=${encodeURIComponent(q.trim())}`)} />}
           <div style={{ flex: 1 }} />
           <Clock />
+          <ThemeToggle />
           <Dropdown menu={{ items: [
-            { key: 'who', label: <div><b>{user.full_name || user.email}</b><div style={{ fontSize: 12, color: '#5d6b6e' }}>{user.email} · {user.role}</div></div>, disabled: true },
+            { key: 'who', label: <div><b>{user.full_name || user.email}</b><div style={{ fontSize: 12, color: 'var(--muted)' }}>{user.email} · {user.role}</div></div>, disabled: true },
             { type: 'divider' },
             { key: 'profile', icon: <UserOutlined />, label: 'My profile', onClick: () => nav('/profile') },
             { key: 'pw', icon: <KeyOutlined />, label: 'Change password', onClick: () => setPw(true) },

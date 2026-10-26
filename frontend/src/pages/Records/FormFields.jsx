@@ -65,7 +65,7 @@ const MAC_RULE = { pattern: /^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$/, message:
 export default function FormFields({ config, dropdowns = {}, form, disabled = false, secretKeys = [], renderAfter }) {
   const fields = Object.fromEntries((config.fields || []).map((f) => [f.key, f]));
   const sections = config.form?.sections || [];
-  if (!sections.length) return <div style={{ color: '#7a8a8e', padding: 12 }}>This page has no form layout yet.</div>;
+  if (!sections.length) return <div style={{ color: 'var(--muted-2)', padding: 12 }}>This page has no form layout yet.</div>;
   return (
     <div className="pill-form">
       {sections.map((s) => (

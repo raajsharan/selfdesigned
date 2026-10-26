@@ -14,7 +14,7 @@ export default function Dashboard() {
   return (
     <div className="page">
       <PageHeader title="Dashboard" sub="Where the estate stands right now." />
-      {!d.inventories.length && <div className="card" style={{ marginBottom: 16 }}><b>No pages yet</b><p style={{ margin: '6px 0 0', color: '#5d6b6e' }}>Nothing is built in: you design the pages that hold your data. {has('admin-pages') ? <Link to="/admin/pages">Open the Page Designer</Link> : 'Ask an administrator to create them.'}</p></div>}
+      {!d.inventories.length && <div className="card" style={{ marginBottom: 16 }}><b>No pages yet</b><p style={{ margin: '6px 0 0', color: 'var(--muted)' }}>Nothing is built in: you design the pages that hold your data. {has('admin-pages') ? <Link to="/admin/pages">Open the Page Designer</Link> : 'Ask an administrator to create them.'}</p></div>}
       <div className="stat-grid">
         {d.inventories.map((i) => <Link key={i.key} to={`/p/${i.key}`} style={{ color: 'inherit' }}><Stat label={`${i.label}${i.decommissioned ? ` (${i.decommissioned} decommissioned)` : ''}`} value={i.active} /></Link>)}
         <Stat label="VMware VMs discovered" value={d.discovery.vmware} />
@@ -23,10 +23,10 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div className="card"><b>VM migration (all projects)</b>
           <div style={{ margin: '12px 0 4px' }}><Progress percent={pct} /></div>
-          <span style={{ color: '#5d6b6e', fontSize: 13 }}>{d.migration.migrated} of {d.migration.total} VMs migrated</span>
+          <span style={{ color: 'var(--muted)', fontSize: 13 }}>{d.migration.migrated} of {d.migration.total} VMs migrated</span>
         </div>
         <div className="card"><b>Tenable data</b>
-          <p style={{ margin: '8px 0 0', color: '#5d6b6e' }}>{d.tenable ? `${d.tenable.row_count} assets imported ${dayjs(d.tenable.imported_at).format('D MMM YYYY, HH:mm')}` : 'No Tenable import yet. Import a file on the Tenable Report page.'}</p>
+          <p style={{ margin: '8px 0 0', color: 'var(--muted)' }}>{d.tenable ? `${d.tenable.row_count} assets imported ${dayjs(d.tenable.imported_at).format('D MMM YYYY, HH:mm')}` : 'No Tenable import yet. Import a file on the Tenable Report page.'}</p>
         </div>
       </div>
       {d.recent.length > 0 && <div className="card" style={{ marginTop: 16 }}><b>Recent activity</b>
