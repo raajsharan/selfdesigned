@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal } from 'antd';
-import { KeyOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
+import { KeyOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { usePages } from '../../context/PagesContext';
 import { iconFor } from '../pageIcons';
@@ -32,7 +32,7 @@ function ChangePassword({ open, onClose }) {
 }
 
 export default function AppLayout() {
-  const { user, pages, logout, has } = useAuth();
+  const { user, pages, logout, lock, has } = useAuth();
   const { app_name, logo_data_url } = useBranding();
   const { pages: designed } = usePages();
   const nav = useNavigate(); const loc = useLocation();
@@ -65,6 +65,7 @@ export default function AppLayout() {
             { key: 'who', label: <div><b>{user.full_name || user.email}</b><div style={{ fontSize: 12, color: '#5d6b6e' }}>{user.email} · {user.role}</div></div>, disabled: true },
             { type: 'divider' },
             { key: 'pw', icon: <KeyOutlined />, label: 'Change password', onClick: () => setPw(true) },
+            { key: 'lock', icon: <LockOutlined />, label: 'Lock screen', onClick: lock },
             { key: 'out', icon: <LogoutOutlined />, label: 'Sign out', onClick: () => { logout(); nav('/login'); } },
           ] }} trigger={['click']}>
             <Button type="text"><Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 8 }} />{user.full_name || user.email}</Button>

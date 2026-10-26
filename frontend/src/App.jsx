@@ -3,6 +3,7 @@ import { Result, Spin } from 'antd';
 import { useAuth } from './context/AuthContext';
 import AppLayout from './components/Layout/AppLayout';
 import Login from './pages/Login';
+import LockScreen from './pages/LockScreen';
 import Dashboard from './pages/Dashboard';
 import PageHost from './pages/PageHost';
 import PagesAdmin from './pages/Admin/PagesAdmin';
@@ -52,7 +53,8 @@ const ROUTES = {
 };
 
 export default function App() {
-  const { user, loading, pages } = useAuth();
+  const { user, loading, pages, locked } = useAuth();
+  if (locked) return <LockScreen />;
   return <PagesProvider><Routing user={user} loading={loading} pages={pages} /></PagesProvider>;
 }
 

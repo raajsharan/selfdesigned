@@ -17,8 +17,18 @@ body { -webkit-font-smoothing: antialiased; }
 .sider-logo { display: flex; align-items: center; gap: 10px; padding: 14px 16px; color: #fff; font-weight: 600; font-size: 15px; min-height: 56px; }
 .sider-logo img { height: 28px; max-width: 120px; object-fit: contain; }
 .sider-group { color: #7f9a9e; font-size: 11px; padding: 14px 20px 4px; letter-spacing: .04em; }
-.login-wrap { min-height: 100%; display: grid; place-items: center; background: #14292c; padding: 16px; }
-.login-card { width: 360px; max-width: 100%; background: #fff; border-radius: 8px; padding: 28px; }
+.auth-wrap { position: relative; min-height: 100vh; overflow: hidden; background: radial-gradient(ellipse at 30% 20%, #17434a 0%, #0c1d20 60%, #070f11 100%); }
+.infra-bg { position: absolute; inset: 0; }
+.auth-center { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; gap: 14px; }
+.auth-card { width: 450px; max-width: 100%; background: #fff; border-radius: 8px; padding: 36px 40px 32px; box-shadow: 0 12px 40px rgba(0, 0, 0, .35); }
+.auth-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; font-size: 26px; font-weight: 700; color: #1d2c2f; }
+.auth-brand img { height: 36px; max-width: 120px; object-fit: contain; }
+.auth-card h1 { font-size: 20px; font-weight: 600; text-align: center; margin: 0 0 6px; color: #3a4a4d; }
+.auth-sub { text-align: center; color: #5d6b6e; margin: 0 0 24px; }
+.auth-card .ant-form-item-label > label { font-weight: 600; }
+.auth-avatar { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0 0 20px; font-weight: 600; color: #3a4a4d; }
+.auth-foot { color: #cfe3e6; font-size: 13px; text-align: center; }
+.auth-foot a { color: #5fd0dc; font-weight: 600; cursor: pointer; }
 .row-expired td { background: #fff1f0 !important; } .row-soon td { background: #fffbe6 !important; }
 .drag-item { padding: 8px 12px; border: 1px solid #e3e8ea; border-radius: 4px; background: #fff; margin-bottom: 6px; cursor: grab; display: flex; gap: 10px; align-items: center; }
 .drag-item.over { border-color: var(--ant-color-primary, #1f6f78); background: #f0f7f7; }
