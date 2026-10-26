@@ -8,15 +8,22 @@ const { bad } = require('../utils/httpError');
 
 exports.tagRanges = simpleCrud({ table: 'department_tag_ranges', entity: 'tag_range', cols: ['department', 'prefix', 'range_start', 'range_end', 'pad'],
   orderBy: 'department', label: (r) => r.department });
-const dropdownCrud = simpleCrud({ table: 'dropdown_values', entity: 'dropdown', cols: ['category', 'value', 'sort_order'],
+const dropdownCrud = simpleCrud({ table: 'dropdown_values', entity: 'dropdown', cols: ['category', 'value', 'sort_order', 'parent_value'],
   orderBy: 'category, sort_order, value', label: (r) => `${r.category}: ${r.value}` });
 exports.dropdownCrud = dropdownCrud;
 
-/** { category: [values] } for forms; every logged-in user may read it. */
+/**
+ * { category: [values], $parents: { category: { value: parentValue } } } for forms; every logged-in user may read it.
+ * "$parents" only lists values that belong to a value of another list (dependent dropdowns).
+ */
 exports.dropdownsMap = async (req, res) => {
-  const { rows } = await db.query('SELECT category, value FROM dropdown_values ORDER BY category, sort_order, value');
-  const out = {};
-  rows.forEach((r) => { (out[r.category] ||= []).push(r.value); });
+  const { rows } = await db.query('SELECT category, value, parent_value FROM dropdown_values ORDER BY category, sort_order, value');
+  const out = {}; const parents = {};
+  rows.forEach((r) => {
+    (out[r.category] ||= []).push(r.value);
+    if (r.parent_value) (parents[r.category] ||= {})[r.value] = r.parent_value;
+  });
+  out.$parents = parents;
   res.json(out);
 };
 

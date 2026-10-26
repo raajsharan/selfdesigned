@@ -45,11 +45,13 @@ function cleanFields(list) {
     if (type === 'select') {
       if (f.optionsCategory) field.optionsCategory = str(f.optionsCategory, 64);
       else field.options = (Array.isArray(f.options) ? f.options : []).map((o) => str(o, 120)).filter(Boolean).slice(0, 200);
+      if (f.dependsOn && field.optionsCategory) field.dependsOn = str(f.dependsOn, 41);
     }
     if (f.showIf && f.showIf.key) field.showIf = { key: str(f.showIf.key, 41), value: f.showIf.value === undefined ? true : f.showIf.value };
     out.push(field);
   }
   for (const f of out) {
+    if (f.dependsOn && (!keys.has(f.dependsOn) || f.dependsOn === f.key)) throw bad(`"${f.label}" depends on a field that does not exist`);
     if (f.showIf && (!keys.has(f.showIf.key) || f.showIf.key === f.key)) throw bad(`"${f.label}" is shown conditionally on a field that does not exist`);
   }
   return out;

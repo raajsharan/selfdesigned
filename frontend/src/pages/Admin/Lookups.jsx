@@ -12,8 +12,11 @@ export function Dropdowns() {
       <CrudTable path="/dropdowns" listPath="/dropdowns/all" createLabel="Add value" key={cat || 'all'}
         transform={(rows) => { setCats([...new Set(rows.map((r) => r.category))].sort()); return rows.filter((r) => !cat || r.category === cat); }}
         fields={[{ name: 'category', label: 'Category', required: true, default: cat, help: 'Lower-case letters and underscores, for example rack_location. A new name creates a new list.' },
-          { name: 'value', label: 'Value', required: true }, { name: 'sort_order', label: 'Sort order', type: 'number', default: 0 }]}
-        columns={[{ title: 'Category', dataIndex: 'category', render: (v) => <Tag>{v}</Tag> }, { title: 'Value', dataIndex: 'value' }, { title: 'Order', dataIndex: 'sort_order', width: 80 }]} />
+          { name: 'value', label: 'Value', required: true },
+          { name: 'parent_value', label: 'Parent value (optional)', help: 'Links this value to a value in another list, e.g. category os_version, value “Windows Server 2019”, parent “Windows”. A field set to “depend on” the other field then shows only the matching values.' },
+          { name: 'sort_order', label: 'Sort order', type: 'number', default: 0 }]}
+        columns={[{ title: 'Category', dataIndex: 'category', render: (v) => <Tag>{v}</Tag> }, { title: 'Value', dataIndex: 'value' },
+          { title: 'Parent value', dataIndex: 'parent_value', render: (v) => v || '-' }, { title: 'Order', dataIndex: 'sort_order', width: 80 }]} />
     </div>
   );
 }

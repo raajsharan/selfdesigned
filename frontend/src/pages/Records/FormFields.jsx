@@ -10,7 +10,15 @@ export function isVisible(f, values) {
   return String(v ?? '') === String(want);
 }
 
-export const optionsOf = (f, dropdowns) => (f.options?.length ? f.options : dropdowns[f.optionsCategory] || []).map((o) => ({ value: o, label: o }));
+/** Choice-list options. A field that "depends on" another list only gets the values linked to the parent's current choice. */
+export const optionsOf = (f, dropdowns, parentValue) => {
+  let list = f.options?.length ? f.options : dropdowns[f.optionsCategory] || [];
+  if (f.dependsOn && f.optionsCategory) {
+    const links = dropdowns.$parents?.[f.optionsCategory] || {};
+    list = parentValue ? list.filter((o) => links[o] === parentValue) : [];
+  }
+  return list.map((o) => ({ value: o, label: o }));
+};
 
 /** Form.Item injects value / onChange / id (or checked for switches): they must reach the real control. */
 function Input_({ f, dropdowns, disabled, extra, ...p }) {
@@ -19,7 +27,12 @@ function Input_({ f, dropdowns, disabled, extra, ...p }) {
     case 'number': return <InputNumber {...p} style={{ width: '100%' }} disabled={disabled} />;
     case 'boolean': return <Switch {...p} disabled={disabled} />;
     case 'date': return <DatePicker {...p} style={{ width: '100%' }} disabled={disabled} />;
-    case 'select': return <Select {...p} allowClear showSearch optionFilterProp="label" options={optionsOf(f, dropdowns)} disabled={disabled} />;
+    case 'select': {
+      const waiting = f.dependsOn && !extra?.parentValue;
+      return <Select {...p} allowClear showSearch optionFilterProp="label" options={optionsOf(f, dropdowns, extra?.parentValue)} disabled={disabled || waiting}
+        placeholder={waiting ? `Select ${extra?.parentLabel || 'the parent field'} first` : undefined}
+        onChange={(v, o) => { p.onChange?.(v, o); (extra?.dependents || []).forEach((k) => extra.form.setFieldValue(k, undefined)); }} />;
+    }
     case 'password': return <Input.Password {...p} autoComplete="new-password" disabled={disabled} placeholder={extra?.hasSecret ? 'Stored. Type to replace.' : ''} />;
     default: return <Input {...p} maxLength={255} disabled={disabled} />;
   }
@@ -53,7 +66,9 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
                     return (
                       <div style={{ gridColumn: `span ${Math.min(it.span || 1, s.columns || 1)}` }}>
                         <Form.Item name={f.key} label={f.label} extra={f.hint} rules={rules} valuePropName={f.type === 'boolean' ? 'checked' : 'value'}>
-                          <Input_ f={f} dropdowns={dropdowns} disabled={disabled} extra={{ hasSecret: secretKeys.includes(f.key) }} />
+                          <Input_ f={f} dropdowns={dropdowns} disabled={disabled}
+                            extra={{ hasSecret: secretKeys.includes(f.key), form, parentValue: f.dependsOn ? form.getFieldValue(f.dependsOn) : undefined, parentLabel: fields[f.dependsOn]?.label,
+                              dependents: (config.fields || []).filter((x) => x.dependsOn === f.key).map((x) => x.key) }} />
                         </Form.Item>
                         {renderAfter?.(f)}
                       </div>

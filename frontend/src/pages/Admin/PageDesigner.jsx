@@ -23,7 +23,7 @@ export default function PageDesigner() {
     try {
       const [p, m, dd, all] = await Promise.all([api.get(`/pages/${slug}`), api.get('/pages/meta'), api.get('/dropdowns'), api.get('/pages?all=1')]);
       const d = { ...p.data, config: p.data.config };
-      setPage(p.data); setDraft(d); setOrig(snapshot(d)); setMeta(m.data); setDropdowns(dd.data); setCategories(Object.keys(dd.data).sort());
+      setPage(p.data); setDraft(d); setOrig(snapshot(d)); setMeta(m.data); setDropdowns(dd.data); setCategories(Object.keys(dd.data).filter((k) => k !== '$parents').sort());
       setRecordPages(all.data.filter((x) => x.kind === 'records' && x.slug !== slug));
       setLockedKeys(new Set((p.data.config.fields || []).map((f) => f.key)));
       setTab(p.data.kind === 'view' ? 'sources' : 'fields');

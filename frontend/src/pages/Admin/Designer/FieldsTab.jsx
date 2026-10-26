@@ -39,6 +39,10 @@ function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
             ? <AutoComplete style={{ width: '100%' }} placeholder="Pick an existing category or type a new one" value={f.optionsCategory || ''} onChange={(v) => upd({ optionsCategory: String(v).toLowerCase().replace(/[^a-z_]/g, '') })}
                 options={categories.map((c) => ({ value: c }))} />
             : <Select mode="tags" style={{ width: '100%' }} placeholder="Type an option and press Enter" value={f.options || []} onChange={(options) => upd({ options })} tokenSeparators={[',']} />}
+          {f.optionsCategory !== undefined && (
+            <label style={{ display: 'block', marginTop: 8 }}>Depends on <span style={{ color: '#7a8a8e' }}>(only list values linked to the choice in another field, e.g. OS Version by OS Type; set each value's “Parent value” in Dropdown Master)</span>
+              <Select allowClear style={{ width: '100%' }} placeholder="No (show the whole list)" value={f.dependsOn}
+                options={others.filter((x) => x.type === 'select').map((x) => ({ value: x.key, label: x.label }))} onChange={(dependsOn) => upd({ dependsOn })} /></label>)}
         </div>)}
       <div>
         <Switch size="small" checked={!!f.showIf} disabled={!others.length} onChange={(on) => upd({ showIf: on ? { key: others[0].key, value: others[0].type === 'boolean' ? true : '' } : undefined })} /> <span style={{ marginLeft: 6 }}>Only show this field when another field has a value</span>

@@ -145,6 +145,8 @@ CREATE TABLE IF NOT EXISTS dropdown_values (
   sort_order INT NOT NULL DEFAULT 0,
   UNIQUE (category, value)
 );
+-- Dependent lists: a value can belong to a value of another list (e.g. os_version "Windows Server 2019" -> os_type "Windows").
+ALTER TABLE dropdown_values ADD COLUMN IF NOT EXISTS parent_value VARCHAR(255);
 
 CREATE TABLE IF NOT EXISTS department_tag_ranges (
   id          SERIAL PRIMARY KEY,

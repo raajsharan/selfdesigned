@@ -18,6 +18,7 @@ export function rewriteKey(config, oldKey, newKey) {
   c.fields = c.fields.filter((f) => !(newKey === null && f.key === oldKey)).map((f) => {
     const g = { ...f, key: keep(f.key) };
     if (g.showIf && g.showIf.key === oldKey) { if (newKey === null) delete g.showIf; else g.showIf = { ...g.showIf, key: newKey }; }
+    if (g.dependsOn === oldKey) { if (newKey === null) delete g.dependsOn; else g.dependsOn = newKey; }
     return g;
   });
   if (c.form) c.form.sections = c.form.sections.map((s) => ({ ...s, items: s.items.map((i) => ({ ...i, key: keep(i.key) })).filter((i) => i.key) }));
