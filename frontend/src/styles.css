@@ -103,3 +103,18 @@ body { -webkit-font-smoothing: antialiased; }
 .role-group-body { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
 .role-group-body .ant-checkbox-wrapper { margin: 0 !important; }
 @media (max-width: 640px) { .role-group-body { grid-template-columns: 1fr; } }
+
+/* ---- Pill-shaped record fields with a leading icon ---- */
+.pill-form .ant-form-item-label > label { font-weight: 600; color: #4a5558; }
+.pill-field { position: relative; }
+.pill-ico { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); z-index: 2; font-size: 16px; color: #4a5558; pointer-events: none; display: flex; }
+.pill-field .ant-input, .pill-field .ant-input-affix-wrapper, .pill-field .ant-input-number, .pill-field .ant-picker, .pill-field .ant-select .ant-select-selector { border-radius: 999px !important; min-height: 44px; }
+.pill-field .ant-input { padding-left: 46px; }
+.pill-field .ant-input-affix-wrapper { padding: 0 14px 0 46px; }
+.pill-field .ant-input-affix-wrapper .ant-input { padding-left: 0; }
+.pill-field .ant-input-number { width: 100%; }
+.pill-field .ant-input-number-input { height: 42px; padding-left: 46px; }
+.pill-field .ant-picker { width: 100%; padding-left: 46px; }
+.pill-field .ant-select .ant-select-selector { padding-left: 46px !important; align-items: center; }
+.pill-field .ant-select-single .ant-select-selector .ant-select-selection-search { inset-inline-start: 46px; }
+.pill-field .ant-select-multiple .ant-select-selector { padding-left: 46px; }

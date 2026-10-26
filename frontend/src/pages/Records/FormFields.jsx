@@ -1,5 +1,7 @@
 import { DatePicker, Divider, Form, Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
+import { ApartmentOutlined, AppstoreOutlined, BarcodeOutlined, CalendarOutlined, CheckCircleOutlined, DesktopOutlined, EditOutlined, EnvironmentOutlined, GlobalOutlined,
+  KeyOutlined, LaptopOutlined, NumberOutlined, TagOutlined, ToolOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
 
 /** Mirrors the server's rule so conditional fields appear and disappear instantly. */
 export function isVisible(f, values) {
@@ -20,8 +22,22 @@ export const optionsOf = (f, dropdowns, parentValue) => {
   return list.map((o) => ({ value: o, label: o }));
 };
 
+// Leading icon of a field: its meaning wins (so an IP field shows a laptop), otherwise its type.
+const ROLE_ICON = { name: DesktopOutlined, hostname: GlobalOutlined, ip: LaptopOutlined, mac: BarcodeOutlined, asset_tag: TagOutlined, status: CheckCircleOutlined,
+  os: AppstoreOutlined, department: ApartmentOutlined, location: EnvironmentOutlined, owner: UserOutlined, patching_type: ToolOutlined, last_patched: CalendarOutlined };
+const TYPE_ICON = { text: EditOutlined, number: NumberOutlined, date: CalendarOutlined, select: UnorderedListOutlined, ip: LaptopOutlined, password: KeyOutlined };
+const iconOf = (f) => ROLE_ICON[f.role] || TYPE_ICON[f.type] || EditOutlined;
+
+/** Pill input with its icon in front. Long text and switches keep their normal look. */
+const Pill = ({ f, children }) => { const Icon = iconOf(f); return <div className="pill-field"><span className="pill-ico" aria-hidden="true"><Icon /></span>{children}</div>; };
+
 /** Form.Item injects value / onChange / id (or checked for switches): they must reach the real control. */
-function Input_({ f, dropdowns, disabled, extra, ...p }) {
+function Input_(props) {
+  const { f } = props;
+  const control = <Control {...props} />;
+  return f.type === 'textarea' || f.type === 'boolean' ? control : <Pill f={f}>{control}</Pill>;
+}
+function Control({ f, dropdowns, disabled, extra, ...p }) {
   switch (f.type) {
     case 'textarea': return <Input.TextArea {...p} rows={3} maxLength={5000} disabled={disabled} />;
     case 'number': return <InputNumber {...p} style={{ width: '100%' }} disabled={disabled} />;
@@ -51,7 +67,7 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
   const sections = config.form?.sections || [];
   if (!sections.length) return <div style={{ color: '#7a8a8e', padding: 12 }}>This page has no form layout yet.</div>;
   return (
-    <>
+    <div className="pill-form">
       {sections.map((s) => (
         <div key={s.id}>
           {s.title && <Divider orientation="left" orientationMargin={0} style={{ margin: '8px 0 12px' }}>{s.title}</Divider>}
@@ -83,7 +99,7 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
           </div>
         </div>
       ))}
-    </>
+    </div>
   );
 }
 
