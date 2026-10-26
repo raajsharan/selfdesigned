@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal } from 'antd';
 import { KeyOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
@@ -10,6 +10,14 @@ import { orderedGroups, ALL_ITEMS } from '../../nav';
 import api, { errMsg } from '../../api/client';
 
 const { Sider, Header, Content } = Layout;
+
+/** Header clock: HH : MM and the long date, refreshed every 20 seconds. */
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 20000); return () => clearInterval(t); }, []);
+  const hm = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', ' : ');
+  return <div className="hdr-clock"><b>{hm}</b><span>{now.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' })}</span></div>;
+}
 
 function ChangePassword({ open, onClose }) {
   const { message } = App.useApp(); const [form] = Form.useForm();
@@ -61,14 +69,16 @@ export default function AppLayout() {
           {has('search') && <Input.Search placeholder="Search all inventories (name, IP, MAC, tag)" allowClear style={{ maxWidth: 420 }}
             onSearch={(q) => q.trim().length >= 2 && nav(`/search?q=${encodeURIComponent(q.trim())}`)} />}
           <div style={{ flex: 1 }} />
+          <Clock />
           <Dropdown menu={{ items: [
             { key: 'who', label: <div><b>{user.full_name || user.email}</b><div style={{ fontSize: 12, color: '#5d6b6e' }}>{user.email} · {user.role}</div></div>, disabled: true },
             { type: 'divider' },
+            { key: 'profile', icon: <UserOutlined />, label: 'My profile', onClick: () => nav('/profile') },
             { key: 'pw', icon: <KeyOutlined />, label: 'Change password', onClick: () => setPw(true) },
             { key: 'lock', icon: <LockOutlined />, label: 'Lock screen', onClick: lock },
             { key: 'out', icon: <LogoutOutlined />, label: 'Sign out', onClick: () => { logout(); nav('/login'); } },
           ] }} trigger={['click']}>
-            <Button type="text"><Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 8 }} />{user.full_name || user.email}</Button>
+            <Button type="text"><Avatar size="small" src={user.photo || undefined} icon={<UserOutlined />} style={{ marginRight: 8 }} />{user.full_name || user.email}</Button>
           </Dropdown>
         </Header>
         <Content><Outlet /></Content>

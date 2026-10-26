@@ -11,7 +11,11 @@ Nothing is pre-built. There are no fixed "Assets", "Servers" or "Beijing" screen
 | **Records page** | Holds its own data. You choose its **fields**, then arrange the **form** (sections, 1 to 3 columns, field widths, conditional fields) and the **table** (which columns, in what order, widths, filter drop-downs, default sort) by dragging. |
 | **View page** | A table that pulls rows from whichever records pages you tick, for example **All records**. Columns can map differently named fields (`server_name` on one page, `device` on another) into one column. Read-only; clicking a row opens it on its own page. |
 
-**Field types:** text, long text, number, yes/no, date, choice list (custom options or a shared Dropdown Master list) and password (AES-256-GCM encrypted, never returned, reveal is permission-gated and audited).
+**Field types:** text, long text, number, yes/no, date, choice list (custom options or a shared Dropdown Master list), **IP address** (IPv4 `x.x.x.x`, e.g. `192.168.1.1`, validated in the form and on the server) and password (AES-256-GCM encrypted, never returned, reveal is permission-gated and audited). On first start after upgrading, existing fields whose meaning is *IP address* are converted to the IP address type once; change one back in the designer if you need free text there (records holding a non-IPv4 value are rejected on their next edit).
+
+**Dependent dropdowns.** A choice-list field that uses a Dropdown Master list can *depend on* another choice-list field, so it only offers the values linked to the parent's current choice (for example OS Version by OS Type). Set it on the Fields tab ("Depends on"), and give each value its **Parent value** in Admin → Dropdown Master. Changing the parent clears the dependent field. Starter `os_version` values for Windows, Linux, VMware ESXi and Proxmox VE are seeded; the OS Version field must use the `os_version` category and the OS Type values must match the parents exactly.
+
+**Form designer.** *Sort by field order* rearranges each form section to follow the order on the Fields tab. Table-layout columns wrap onto the next row instead of running off the edge.
 
 **Field meanings.** A field can be given a meaning: Name, Hostname, IP address, MAC address, Asset tag, Status, Operating system, Department, Location, Owner, Patching type or Last patched. Meanings are how features that span pages find the right field without caring what you called it:
 
@@ -30,10 +34,16 @@ Changing a field's meaning later re-maps existing records automatically. Field *
 
 * **Per-page records**: encrypted password fields, required and unique flags, conditional fields, Excel import with create / merge / error preview, CSV export (never includes passwords), bulk status / tags / delete, soft delete with recycle bin, global search across every field of every page
 * **Decommission lifecycle**: immutable log (a database trigger blocks edits and deletes), reactivation refused if the tag or IP was reused meanwhile
-* **Migration tracker**: projects with Hosts, Bomgar VMs, Security VMs, Standalone ESXi and custom tabs, typed custom fields, inline editing, column show/hide and reorder, summary cards, overview, multi-sheet Excel import, sync from VMware discovery
+* **Migration tracker**: projects start with **no predefined tabs** (add your own, including custom ones), typed custom fields, inline editing, column show/hide and reorder, summary cards, overview, multi-sheet Excel import, sync from VMware discovery
 * **Discovery**: vSphere (REST) and Proxmox VE (API token): VM list, dashboard, drift, topology, stale VMs, MAC lookup, scheduled runs, one-click add to **any records page you choose**
 * **Integrations**: Tenable report, Nessus agent status with SSH install, ManageEngine Endpoint Central (API key or credentials + TOTP), Teams Adaptive Card notifications
 * **Administration**: roles and custom roles, per-user page overrides, dropdowns, tag ranges, compliance config, branding, audit log, backup/restore, Swagger at `/api/docs`
+
+### Sign-in, lock screen and profile
+
+* **Login and lock screens** with an animated infrastructure background (nodes, links, data packets; static when the browser asks for reduced motion). The screen **locks automatically after 5 minutes without activity** (also from the user menu → *Lock screen*); the user unlocks with their password, or chooses *Not you? Sign in* to switch account.
+* **Records open in popups**: *Add / Edit record* is a modal over the same page, and the eye icon opens a detail popup with summary cards, form sections and a password reveal / copy (permission-gated and audited).
+* **My profile** (`/profile`, user menu → *My profile*, available to every signed-in user) is the Account Settings page: **General** (user name, name, email, company, profile photo up to 800 kB, cropped and shrunk to 256 px in the browser), **Change Password**, **Info** (job title, phone, location, about), **Social links** (LinkedIn, Twitter/X, GitHub, website) and **Notifications** (switches, stored for future use; nothing sends email yet). The header shows the photo and a clock with the date. API: `PUT /api/auth/me/profile` changes only the sections sent; user name and email must be unique.
 
 ### Access to designed pages
 
@@ -145,6 +155,8 @@ deploy/    inventory-backend.service, nginx-inventory.conf
 ```
 
 ## Upgrading
+
+New columns on `users` (user name, company, photo, profile) and on `dropdown_values` (parent value) are added automatically on start, so restart the backend after pulling.
 
 ```bash
 git pull

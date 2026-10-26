@@ -42,6 +42,9 @@ export function AuthProvider({ children }) {
     return () => { events.forEach((e) => window.removeEventListener(e, touch)); clearInterval(timer); };
   }, [state.user, locked, lock]);
 
-  const value = useMemo(() => ({ ...state, locked: !!state.user && locked, login, logout, lock, unlock, has: (p) => state.pages.has(p) }), [state, locked, login, logout, lock, unlock]);
+  /** Replace the signed-in user's details after a profile edit (the API returns the fresh profile). */
+  const setUser = useCallback((user) => setState((s) => ({ ...s, user })), []);
+
+  const value = useMemo(() => ({ ...state, locked: !!state.user && locked, login, logout, lock, unlock, setUser, has: (p) => state.pages.has(p) }), [state, locked, login, logout, lock, unlock, setUser]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

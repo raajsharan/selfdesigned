@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import AppLayout from './components/Layout/AppLayout';
 import Login from './pages/Login';
 import LockScreen from './pages/LockScreen';
+import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import PageHost from './pages/PageHost';
 import PagesAdmin from './pages/Admin/PagesAdmin';
@@ -68,6 +69,7 @@ function Routing({ user, loading, pages }) {
       <Route element={<AppLayout />}>
         {ALL_ITEMS.map((i) => <Route key={i.key} path={i.path === '/' ? '/' : `${i.path}/*`}
           element={i.key === 'dashboard' && !pages.has('dashboard') && first ? <Navigate to={first.path} replace /> : <Guard page={i.key}>{ROUTES[i.key]}</Guard>} />)}
+        <Route path="/profile" element={<Profile />} />
         <Route path="/p/:slug" element={<PageHost />} />
         <Route path="/admin/pages/:slug" element={<Guard page="admin-pages"><PageDesigner /></Guard>} />
         <Route path="*" element={first ? <Navigate to={first.path} replace /> : <Result status="403" title="No pages assigned" subTitle="Your account has no page access yet." />} />

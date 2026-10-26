@@ -11,6 +11,7 @@ const limiter = (max) => rateLimit({ windowMs: 15 * 60 * 1000, max, standardHead
 
 router.post('/login', limiter(Number(process.env.RATE_LIMIT_LOGIN) || 20), body('email').isEmail(), body('password').isString().notEmpty().isLength({ max: 200 }), validate, asyncHandler(c.login));
 router.get('/me', authenticate, asyncHandler(c.me));
+router.put('/me/profile', authenticate, limiter(60), validate, asyncHandler(c.updateProfile));
 router.post('/me/change-password', authenticate, limiter(5),
   body('current_password').isString().notEmpty(), body('new_password').isString().isLength({ min: 8, max: 200 }), validate, asyncHandler(c.changePassword));
 module.exports = router;

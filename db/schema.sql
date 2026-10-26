@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS users (
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Self-service profile (Account Settings page).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username      VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS company       VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_data_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile       JSONB NOT NULL DEFAULT '{}';
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON users (lower(username)) WHERE username IS NOT NULL;
 
 -- ------------------------------------------------------------------ user-defined pages
 -- Nothing is pre-created: administrators design every page. A page is either
