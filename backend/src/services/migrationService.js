@@ -9,12 +9,7 @@ const STAGE_COLS = ['vms_vacate_status', 'proxmox_install_status', 'vm_migration
 const FIELD_TYPES = ['text', 'textarea', 'number', 'boolean', 'dropdown', 'date'];
 const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-const DEFAULT_TABS = [
-  { key: 'hosts',      label: 'Hosts',           type: 'hosts',      enabled: true, hidden_columns: [] },
-  { key: 'bomgar',     label: 'Bomgar VMs',      type: 'bomgar',     enabled: true, hidden_columns: [], name_pattern: 'bomgar' },
-  { key: 'security',   label: 'Security VMs',    type: 'security',   enabled: true, hidden_columns: [], name_pattern: '' },
-  { key: 'standalone', label: 'Standalone ESXi', type: 'standalone', enabled: true, hidden_columns: [] },
-];
+const DEFAULT_TABS = [];
 // Route segment -> tab type used by the REST endpoints.
 const KIND_TO_TYPE = { 'bomgar-vms': 'bomgar', 'security-vms': 'security', 'standalone-esxi': 'standalone', 'custom-vms': 'custom' };
 

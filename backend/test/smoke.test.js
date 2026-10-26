@@ -266,7 +266,7 @@ test('excel import: preview diff, then commit; template + csv export', async () 
 test('migration tracker: project, hosts, VMs, custom fields, overview, import', async () => {
   const p = await api('POST', '/migration/projects', { token: S.admin, body: { name: `Proj ${run}` } });
   assert.equal(p.status, 201, p.text); const pid = p.json.id;
-  assert.equal(p.json.tabs.length, 4);
+  assert.equal(p.json.tabs.length, 0);
   assert.equal((await api('POST', `/migration/projects/${pid}/custom-fields`, { token: S.admin, body: { key: 'owner', label: 'Owner', type: 'dropdown', options: ['Ops', 'Sec'] } })).status, 201);
   const h = await api('POST', '/migration/hosts', { token: S.admin, body: { project_id: pid, host_name: 'esx01', datacenter: 'DC1', cluster: 'C1' } });
   assert.equal(h.status, 201, h.text);

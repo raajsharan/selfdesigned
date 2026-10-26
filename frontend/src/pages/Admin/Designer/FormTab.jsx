@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Drawer, Form, Input, Popconfirm, Select } from 'antd';
-import { ArrowLeftOutlined, ArrowRightOutlined, CloseOutlined, DeleteOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined, CloseOutlined, DeleteOutlined, EyeOutlined, PlusOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import { Draggable, DropZone, move } from '../../../components/dnd';
 import FormFields from '../../Records/FormFields';
 import { uid } from './util';
@@ -26,6 +26,11 @@ export default function FormTab({ config, setConfig, dropdowns }) {
   const nudge = (sid, key, d) => setSections((secs) => secs.map((s) => { if (s.id !== sid) return s; const i = s.items.findIndex((x) => x.key === key); const j = i + d; return j < 0 || j >= s.items.length ? s : { ...s, items: move(s.items, i, j) }; }));
   const addSection = () => setSections((secs) => [...secs, { id: uid(), title: 'New section', columns: 2, items: [] }]);
   const reorderSection = (id, toIndex) => setSections((secs) => { const from = secs.findIndex((s) => s.id === id); return move(secs, from, toIndex > from ? toIndex - 1 : toIndex); });
+  /** Re-order every section's fields to follow the order on the Fields tab. */
+  const sortByFieldOrder = () => setSections((secs) => {
+    const rank = new Map(config.fields.map((f, i) => [f.key, i]));
+    return secs.map((s) => ({ ...s, items: [...s.items].sort((a, b) => (rank.get(a.key) ?? 0) - (rank.get(b.key) ?? 0)) }));
+  });
   const placeAll = () => setSections((secs) => {
     const target = secs.length ? secs : [{ id: uid(), title: 'Details', columns: 2, items: [] }];
     return target.map((s, i) => (i === target.length - 1 ? { ...s, items: [...s.items, ...palette.map((f) => ({ key: f.key, span: f.type === 'textarea' ? s.columns : 1 }))] } : s));
@@ -43,7 +48,7 @@ export default function FormTab({ config, setConfig, dropdowns }) {
 
       <div>
         {missing.length > 0 && <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`Required but not on the form: ${missing.map((f) => f.label).join(', ')}`} description="Records cannot be created without them. Place them on the form or make them optional." />}
-        <div className="toolbar"><Button icon={<PlusOutlined />} onClick={addSection}>Add section</Button><div className="grow" /><Button icon={<EyeOutlined />} onClick={() => setPreview(true)} disabled={!sections.length}>Preview form</Button></div>
+        <div className="toolbar"><Button icon={<PlusOutlined />} onClick={addSection}>Add section</Button><div className="grow" /><Button icon={<SortAscendingOutlined />} onClick={sortByFieldOrder} disabled={!sections.length}>Sort by field order</Button><Button icon={<EyeOutlined />} onClick={() => setPreview(true)} disabled={!sections.length}>Preview form</Button></div>
         {!sections.length && <Alert type="info" showIcon message="Start by adding a section" description="A section is a titled block of the form with 1 to 3 columns. Then drag fields into it." />}
         {sections.map((s, si) => (
           <div key={s.id}>
