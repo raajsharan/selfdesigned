@@ -40,7 +40,7 @@ body { -webkit-font-smoothing: antialiased; }
 .canvas-section { background: #fff; border: 1px solid #d5dde0; border-radius: 6px; padding: 10px 12px 12px; margin-bottom: 12px; }
 .canvas-item { border: 1px solid #cfd9dc; background: #f8fbfb; border-radius: 4px; padding: 6px 8px; display: flex; align-items: center; gap: 6px; min-height: 36px; }
 .canvas-item.sel { border-color: var(--ant-color-primary, #1f6f78); box-shadow: 0 0 0 1px var(--ant-color-primary, #1f6f78); }
-.designer-grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+.designer-grid { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
 .designer-pane { background: #fff; border: 1px solid #e3e8ea; border-radius: 6px; padding: 12px; }
 .field-card { border: 1px solid #d5dde0; border-radius: 6px; background: #fff; margin-bottom: 8px; }
 .field-card-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; }

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
+const { getSetting, setSetting } = require('../services/settingsService');
 
 const SQL_FILES = ['schema.sql', 'vmware_schema.sql', 'proxmox_schema.sql', 'tenable_schema.sql', 'vmware_asset_edits.sql'];
 
@@ -39,6 +40,13 @@ async function ensureSchema() {
       await db.query(
         "INSERT INTO dropdown_values (category, value, sort_order, parent_value) VALUES ('os_version',$1,$2,$3) ON CONFLICT DO NOTHING", [versions[i], i, parent]);
     }
+  }
+  // One-time: pages' fields that mean "IP address" become the IP address type (x.x.x.x). Admins can change them back afterwards.
+  if (!(await getSetting('migrated_ip_field_type', {})).done) {
+    await db.query(`UPDATE inventory_pages SET config = jsonb_set(config, '{fields}',
+        (SELECT jsonb_agg(CASE WHEN f->>'role' = 'ip' AND f->>'type' = 'text' THEN jsonb_set(f, '{type}', '"ip"') ELSE f END) FROM jsonb_array_elements(config->'fields') f))
+      WHERE jsonb_typeof(config->'fields') = 'array' AND EXISTS (SELECT 1 FROM jsonb_array_elements(config->'fields') f WHERE f->>'role' = 'ip' AND f->>'type' = 'text')`);
+    await setSetting('migrated_ip_field_type', { done: true });
   }
   console.log('[schema] up to date');
 }

@@ -31,14 +31,14 @@ export default function TableTab({ config, setConfig }) {
         {!palette.length && <div style={{ color: '#9aa7a9', fontSize: 13 }}>Every column is in the table.</div>}
       </DropZone>
 
-      <div>
+      <div style={{ minWidth: 0 }}>
         {!table.columns.length && <Alert type="info" showIcon style={{ marginBottom: 12 }} message="Drag the columns you want to see into the table below" />}
-        <div className="designer-pane" style={{ overflowX: 'auto' }}>
-          <b>Table</b> <span style={{ color: '#5d6b6e', fontSize: 12 }}>(column order, left to right)</span>
-          <div style={{ display: 'flex', alignItems: 'stretch', marginTop: 10, minHeight: 74 }}>
+        <div className="designer-pane">
+          <b>Table</b> <span style={{ color: '#5d6b6e', fontSize: 12 }}>(column order, left to right, wrapping onto the next row)</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 8, marginTop: 10, minHeight: 74 }}>
             {table.columns.map((c, i) => (
               <DropZone key={c.key} accept={(d) => d.kind === 'col' && d.key !== c.key} onDrop={(d) => insert(d, c.key)} style={{ display: 'flex' }}>
-                <Draggable payload={{ kind: 'col', key: c.key, from: 'col' }} className="canvas-item" style={{ flexDirection: 'column', alignItems: 'stretch', minWidth: 130, borderRadius: 0, background: '#eef2f3' }}>
+                <Draggable payload={{ kind: 'col', key: c.key, from: 'col' }} className="canvas-item" style={{ flexDirection: 'column', alignItems: 'stretch', minWidth: 150, background: '#eef2f3' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <b style={{ flex: 1 }}>{label(c.key)}</b>
                     <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => nudge(i, -1)} aria-label={`Move ${label(c.key)} left`} />

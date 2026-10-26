@@ -39,6 +39,11 @@ function coerce(f, v) {
     case 'number': { const n = Number(v); if (!Number.isFinite(n)) throw bad(`${f.label} must be a number`); return n; }
     case 'boolean': return v === true || ['true', 'yes', '1', 'y'].includes(String(v).toLowerCase());
     case 'date': { const d = v instanceof Date ? v : new Date(v); if (Number.isNaN(d.getTime())) throw bad(`${f.label} is not a valid date`); return d.toISOString().slice(0, 10); }
+    case 'ip': {
+      const s = String(v).trim();
+      if (!/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/.test(s)) throw bad(`${f.label} must be an IP address like 192.168.1.1`);
+      return s;
+    }
     default: { const s = String(v).trim().slice(0, f.type === 'textarea' ? 5000 : 255); return f.role === 'mac' ? normalizeMac(s) : s; }
   }
 }

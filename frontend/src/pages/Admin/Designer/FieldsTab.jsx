@@ -4,7 +4,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { Draggable, DropZone, move } from '../../../components/dnd';
 import { keyFrom, rewriteKey, uid } from './util';
 
-const TYPE_LABEL = { text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', password: 'Password (encrypted)' };
+const TYPE_LABEL = { text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', ip: 'IP address (x.x.x.x)', password: 'Password (encrypted)' };
 
 function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
   const others = config.fields.filter((x) => x.key !== f.key);

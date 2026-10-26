@@ -10,7 +10,7 @@ const ROLE_COLUMNS = {
 };
 const ROLE_LABELS = { name: 'Name', hostname: 'Hostname', ip: 'IP address', mac: 'MAC address', asset_tag: 'Asset tag', status: 'Status', os: 'Operating system',
   department: 'Department', location: 'Location', owner: 'Owner', patching_type: 'Patching type', last_patched: 'Last patched (date)' };
-const FIELD_TYPES = ['text', 'textarea', 'number', 'boolean', 'date', 'select', 'password'];
+const FIELD_TYPES = ['text', 'textarea', 'number', 'boolean', 'date', 'select', 'password', 'ip'];
 const KEY_RE = /^[a-z][a-z0-9_]{0,40}$/;
 const SLUG_RE = /^[a-z][a-z0-9-]{1,47}$/;
 const RESERVED = new Set(['constructor', 'prototype', '__proto__', 'hasownproperty']);
