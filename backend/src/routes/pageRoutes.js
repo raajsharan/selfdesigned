@@ -31,6 +31,7 @@ const kind = pages.byKind;
 data.get('/records', query('page').optional().isInt({ min: 1 }), query('pageSize').optional().isInt({ min: 1, max: 200 }), validate, kind({ records: h(records.list), view: h(records.viewList) }));
 data.get('/records/export', kind({ records: h(records.exportCsv), view: h(records.viewExport) }));
 data.get('/records/template', kind({ records: h(records.templateXlsx) }));
+data.get('/tag-info', query('department').isString().isLength({ min: 1, max: 128 }), validate, kind({ records: h(records.tagInfo) }));
 data.get('/filter-options', kind({ records: h(records.filterOptions), view: h(records.viewFilterOptions) }));
 data.post('/records/import', upload.single('file'), h(records.importXlsx));   // view pages are rejected earlier: they are read-only
 data.post('/records/bulk', body('ids').isArray({ min: 1, max: 1000 }), body('ids.*').isInt({ min: 1 }), body('action').isIn(['status', 'delete', 'assign_tags']), validate, kind({ records: h(records.bulk) }));

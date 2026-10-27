@@ -159,3 +159,25 @@ body { -webkit-font-smoothing: antialiased; }
 .rvw-foot-btns { display: flex; gap: 8px; }
 @media (max-width: 800px) { .rvw-grid { grid-template-columns: 1fr; } .rvw-head { flex-wrap: wrap; } .rvw-label { width: 110px; } }
 .rec-link { font-weight: 600; cursor: pointer; }
+
+/* ---- Record edit popup ---- */
+.rfm-modal .ant-modal-content { padding: 0; overflow: hidden; border-radius: 12px; }
+.rfm-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 28px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.rfm-title { font-size: 22px; font-weight: 700; }
+.rfm-main { display: grid; grid-template-columns: 210px minmax(0, 1fr); background: var(--surface-2); }
+.rfm-side { padding: 20px 14px; border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; gap: 4px; }
+.rfm-side-h { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 0 12px 8px; }
+.rfm-side button { text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 12px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.rfm-side button:hover { color: var(--text); }
+.rfm-side button.on { background: var(--surface-2); color: var(--text); }
+.rfm-note { margin-top: auto; padding: 24px 12px 0; font-size: 12px; color: var(--muted); }
+.rfm-scroll { padding: 20px 28px; max-height: 66vh; min-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
+.rfm-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px 8px; }
+.rfm-card h3 { font-size: 16px; font-weight: 700; margin: 0 0 14px; }
+.rfm-req { color: #ff4d4f; margin-left: 3px; }
+.rfm-hint { font-size: 12px; color: var(--muted); margin: -12px 0 12px; }
+.rfm-hint-row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rfm-hint a { font-weight: 600; cursor: pointer; }
+.rfm-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 28px; border-top: 1px solid var(--border); background: var(--surface); }
+.ip-ok { color: #3fa516; font-size: 12px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 800px) { .rfm-main { grid-template-columns: 1fr; } .rfm-side { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); } .rfm-note { display: none; } }

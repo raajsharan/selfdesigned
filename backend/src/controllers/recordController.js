@@ -8,7 +8,7 @@ const { sendCsv } = require('../utils/csv');
 const { audit } = require('../services/auditService');
 const teams = require('../services/teamsNotificationService');
 const decommissionSvc = require('../services/decommissionService');
-const { validateTag, nextFreeTags } = require('../services/tagRangeService');
+const { validateTag, nextFreeTags, getRange, formatTag } = require('../services/tagRangeService');
 const { ROLE_COLUMNS, promote, roleKeys } = require('../services/pageService');
 const { unionSql } = require('../utils/inventoryUnion');
 
@@ -218,6 +218,15 @@ exports.decommission = async (req, res) => {
   const r = await decommissionSvc.decommission(req.page, req.params.id, req.body.reason, req.user);
   audit(req, 'decommission', `page:${req.page.slug}`, r.id, { name: display(r), reason: req.body.reason });
   res.json({ ok: true });
+};
+
+/** The tag range of a department and its next free tag, for the form's "Use next free tag" helper. */
+exports.tagInfo = async (req, res) => {
+  const range = await getRange(req.query.department);
+  if (!range) return res.json({ range: null, next: null });
+  let next = null;
+  try { [next] = await nextFreeTags(req.query.department); } catch { /* range exhausted: no tag to offer */ }
+  res.json({ range: { from: formatTag(range, range.range_start), to: formatTag(range, range.range_end) }, next });
 };
 
 /** Audit trail of one record, newest first (who created, changed, decommissioned it, or revealed a password). */

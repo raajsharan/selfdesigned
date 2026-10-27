@@ -37,4 +37,4 @@ async function nextFreeTags(department, count = 1, client = db) {
   return out;
 }
 
-module.exports = { validateTag, nextFreeTags, getRange };
+module.exports = { validateTag, nextFreeTags, getRange, formatTag: format };

@@ -1,6 +1,6 @@
 import { DatePicker, Divider, Form, Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
-import { ApartmentOutlined, AppstoreOutlined, BarcodeOutlined, CalendarOutlined, CheckCircleOutlined, DesktopOutlined, EditOutlined, EnvironmentOutlined, GlobalOutlined,
+import { ApartmentOutlined, AppstoreOutlined, BarcodeOutlined, CalendarOutlined, CheckCircleOutlined, CheckOutlined, DesktopOutlined, EditOutlined, EnvironmentOutlined, GlobalOutlined,
   KeyOutlined, LaptopOutlined, NumberOutlined, TagOutlined, ToolOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
 
 /** Mirrors the server's rule so conditional fields appear and disappear instantly. */
@@ -50,7 +50,7 @@ function Control({ f, dropdowns, disabled, extra, ...p }) {
         onChange={(v, o) => { p.onChange?.(v, o); (extra?.dependents || []).forEach((k) => extra.form.setFieldValue(k, undefined)); }} />;
     }
     case 'password': return <Input.Password {...p} autoComplete="new-password" disabled={disabled} placeholder={extra?.hasSecret ? 'Stored. Type to replace.' : ''} />;
-    case 'ip': return <Input {...p} placeholder="192.168.1.1" inputMode="decimal" maxLength={15} disabled={disabled} />;
+    case 'ip': return <Input {...p} placeholder="192.168.1.1" inputMode="decimal" maxLength={15} disabled={disabled} suffix={IP_RULE.pattern.test(p.value || '') ? <span className="ip-ok"><CheckOutlined /> Valid IPv4</span> : null} />;
     default: return <Input {...p} maxLength={255} disabled={disabled} />;
   }
 }
@@ -62,15 +62,15 @@ const MAC_RULE = { pattern: /^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$/, message:
  * Renders the designed form layout. Used for the real editor and for the live preview in the designer
  * (with `disabled`). `secretKeys` = password fields that already hold a value.
  */
-export default function FormFields({ config, dropdowns = {}, form, disabled = false, secretKeys = [], renderAfter }) {
+export default function FormFields({ config, dropdowns = {}, form, disabled = false, secretKeys = [], renderAfter, cards = false }) {
   const fields = Object.fromEntries((config.fields || []).map((f) => [f.key, f]));
   const sections = config.form?.sections || [];
   if (!sections.length) return <div style={{ color: 'var(--muted-2)', padding: 12 }}>This page has no form layout yet.</div>;
   return (
     <div className="pill-form">
       {sections.map((s) => (
-        <div key={s.id}>
-          {s.title && <Divider orientation="left" orientationMargin={0} style={{ margin: '8px 0 12px' }}>{s.title}</Divider>}
+        <section key={s.id} id={cards ? `rfm-sec-${s.id}` : undefined} className={cards ? 'rfm-card' : undefined}>
+          {s.title && (cards ? <h3>{s.title}</h3> : <Divider orientation="left" orientationMargin={0} style={{ margin: '8px 0 12px' }}>{s.title}</Divider>)}
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${s.columns || 1}, minmax(0, 1fr))`, gap: '0 16px' }}>
             {s.items.map((it) => {
               const f = fields[it.key]; if (!f) return null;
@@ -97,7 +97,7 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
               );
             })}
           </div>
-        </div>
+        </section>
       ))}
     </div>
   );
