@@ -181,3 +181,18 @@ body { -webkit-font-smoothing: antialiased; }
 .rfm-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 28px; border-top: 1px solid var(--border); background: var(--surface); }
 .ip-ok { color: #3fa516; font-size: 12px; font-weight: 600; white-space: nowrap; }
 @media (max-width: 800px) { .rfm-main { grid-template-columns: 1fr; } .rfm-side { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); } .rfm-note { display: none; } }
+
+/* Pill controls share one height so the leading icon is centred on the visible box (selects and pickers were shorter than their box). */
+.pill-field { --pill-h: 44px; min-height: var(--pill-h); }
+.pill-field .ant-input, .pill-field .ant-input-affix-wrapper, .pill-field .ant-input-number, .pill-field .ant-picker, .pill-field .ant-select { height: var(--pill-h); }
+.pill-field .ant-input-affix-wrapper { display: flex; align-items: center; }
+.pill-field .ant-input-number { display: flex; align-items: center; }
+.pill-field .ant-input-number-input-wrap { width: 100%; }
+.pill-field .ant-input-number-input { height: calc(var(--pill-h) - 2px); }
+.pill-field .ant-select { display: block; width: 100%; }
+.pill-field .ant-select .ant-select-selector { height: var(--pill-h) !important; align-items: center; }
+.pill-field .ant-select-single .ant-select-selection-item, .pill-field .ant-select-single .ant-select-selection-placeholder { line-height: calc(var(--pill-h) - 2px) !important; }
+.pill-field .ant-select-single .ant-select-selection-search-input { height: calc(var(--pill-h) - 2px) !important; }
+.pill-field .ant-select-multiple .ant-select-selector { height: auto !important; min-height: var(--pill-h); }
+.pill-field .ant-picker { align-items: center; }
+.pill-ico { top: calc(var(--pill-h, 44px) / 2); }
