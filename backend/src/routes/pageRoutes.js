@@ -38,6 +38,8 @@ data.post('/records', body('data').isObject(), validate, kind({ records: h(recor
 data.get('/records/:id', rid, validate, kind({ records: h(records.getOne) }));
 data.put('/records/:id', rid, body('data').isObject(), validate, kind({ records: h(records.update) }));
 data.delete('/records/:id', rid, validate, kind({ records: h(records.remove) }));
+data.get('/records/:id/activity', rid, validate, kind({ records: h(records.activity) }));
+data.get('/records/:id/integrations', rid, validate, kind({ records: h(records.integrations) }));
 data.post('/records/:id/decommission', rid, body('reason').optional().isString().isLength({ max: 1000 }), validate, kind({ records: h(records.decommission) }));
 data.get('/records/:id/secrets/:key', rid, param('key').matches(/^[a-z][a-z0-9_]{0,40}$/), validate, requirePasswordAccess, kind({ records: h(records.revealSecret) }));
 

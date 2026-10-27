@@ -81,7 +81,7 @@ function cleanTable(table, fields) {
     if (!keys.has(key) || key === '_page') throw bad(`The table uses a column that does not exist: "${key}"`);
     if (fields.find((f) => f.key === key)?.type === 'password') throw bad('Password fields cannot be table columns');
     if (seen.has(key)) continue;
-    seen.add(key); columns.push({ key, width: intIn(c.width, 60, 600, 0) || undefined });
+    seen.add(key); columns.push({ key, width: intIn(c.width, 60, 600, 0) || undefined, fixed: c.fixed === true || undefined });   // fixed = frozen at the left while scrolling
   }
   const fieldKeys = new Set(fields.filter((f) => f.type !== 'password').map((f) => f.key));
   const filters = (Array.isArray(table?.filters) ? table.filters : []).filter((k) => fieldKeys.has(k)).slice(0, 8);

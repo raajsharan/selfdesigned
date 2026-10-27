@@ -220,6 +220,32 @@ exports.decommission = async (req, res) => {
   res.json({ ok: true });
 };
 
+/** Audit trail of one record, newest first (who created, changed, decommissioned it, or revealed a password). */
+exports.activity = async (req, res) => {
+  const { rows: rec } = await db.query('SELECT id FROM inventory_records WHERE id = $1 AND page_id = $2', [req.params.id, req.page.id]);
+  if (!rec[0]) throw notFound('Record not found');
+  const { rows } = await db.query(
+    'SELECT id, user_email, action, details, created_at FROM audit_logs WHERE entity = $1 AND entity_id = $2 ORDER BY id DESC LIMIT 50', [`page:${req.page.slug}`, String(req.params.id)]);
+  res.json(rows.map((r) => ({ id: r.id, user: r.user_email, action: r.action, created_at: r.created_at, changed: r.details?.changed, reason: r.details?.reason, field: r.details?.field })));
+};
+
+/** Where else this machine shows up, matched on IP address or name: VMware, Proxmox, Tenable and the Nessus agent flag. Only sources the user may open. */
+exports.integrations = async (req, res) => {
+  const { rows } = await db.query('SELECT id, vm_name, hostname, ip_address FROM inventory_records WHERE id = $1 AND page_id = $2 AND is_deleted = FALSE', [req.params.id, req.page.id]);
+  if (!rows[0]) throw notFound('Record not found');
+  const { ip_address: ip, vm_name, hostname } = rows[0]; const names = [vm_name, hostname].filter(Boolean).map((n) => n.toLowerCase());
+  const has = (k) => req.user.pages.has(k);
+  const out = { matched_on: ip || names.length ? { ip: ip || null, names } : null };
+  if (has('vmware')) out.vmware = (await db.query(
+    'SELECT name, power_state, ip_address, guest_os, tools_status, host_name, cluster, last_seen FROM vmware_vms WHERE ip_address = $1 OR lower(name) = ANY($2) ORDER BY last_seen DESC LIMIT 5', [ip, names])).rows;
+  if (has('proxmox')) out.proxmox = (await db.query(
+    'SELECT name, status, ip_address, os_type, node, last_seen FROM proxmox_vms WHERE ip_address = $1 OR lower(name) = ANY($2) ORDER BY last_seen DESC LIMIT 5', [ip, names])).rows;
+  if (has('tenable')) out.tenable = (await db.query(
+    'SELECT hostname, ip_address, os, critical, high, medium, low, last_seen FROM tenable_assets WHERE ip_address = $1 OR lower(hostname) = ANY($2) ORDER BY id DESC LIMIT 1', [ip, names])).rows[0] || null;
+  if (has('nessus-status')) out.nessus = (await db.query('SELECT installed, version, last_checked_at FROM nessus_status WHERE source = $1 AND asset_id = $2', [req.page.slug, req.params.id])).rows[0] || null;
+  res.json(out);
+};
+
 exports.revealSecret = async (req, res) => {
   const f = fieldsOf(req.page).find((x) => x.key === req.params.key && x.type === 'password');
   if (!f) throw notFound('Not a password field');

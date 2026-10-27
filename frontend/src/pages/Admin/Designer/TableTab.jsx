@@ -1,5 +1,5 @@
-import { Alert, Button, InputNumber, Select } from 'antd';
-import { ArrowLeftOutlined, ArrowRightOutlined, CloseOutlined } from '@ant-design/icons';
+import { Alert, Button, InputNumber, Select, Tooltip } from 'antd';
+import { ArrowLeftOutlined, ArrowRightOutlined, CloseOutlined, LockFilled, UnlockOutlined } from '@ant-design/icons';
 import { Draggable, DropZone, move } from '../../../components/dnd';
 
 export const META_COLS = [{ key: '_created_at', label: 'Created' }, { key: '_updated_at', label: 'Updated' }];
@@ -10,7 +10,10 @@ export default function TableTab({ config, setConfig }) {
   const label = (k) => all.find((a) => a.key === k)?.label || k;
   const used = new Set(table.columns.map((c) => c.key));
   const palette = all.filter((a) => !used.has(a.key));
-  const setTable = (fn) => setConfig((c) => ({ ...c, table: fn(c.table) }));
+  // Frozen columns always sit first (a sticky column in the middle of a table would overlap its neighbours).
+  const normalize = (t) => ({ ...t, columns: [...t.columns.filter((c) => c.fixed), ...t.columns.filter((c) => !c.fixed)] });
+  const setTable = (fn) => setConfig((c) => ({ ...c, table: normalize(fn(c.table)) }));
+  const freeze = (key, on) => setTable((t) => ({ ...t, columns: t.columns.map((c) => (c.key === key ? { ...c, fixed: on || undefined } : c)) }));
   const insert = (d, at) => setTable((t) => {
     const cols = d.from === 'col' ? t.columns.filter((c) => c.key !== d.key) : [...t.columns];
     const orig = t.columns.find((c) => c.key === d.key);
@@ -34,13 +37,15 @@ export default function TableTab({ config, setConfig }) {
       <div style={{ minWidth: 0 }}>
         {!table.columns.length && <Alert type="info" showIcon style={{ marginBottom: 12 }} message="Drag the columns you want to see into the table below" />}
         <div className="designer-pane">
-          <b>Table</b> <span style={{ color: 'var(--muted)', fontSize: 12 }}>(column order, left to right, wrapping onto the next row)</span>
+          <b>Table</b> <span style={{ color: 'var(--muted)', fontSize: 12 }}>(column order, left to right, wrapping onto the next row; lock a column to freeze it at the left while scrolling)</span>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 8, marginTop: 10, minHeight: 74 }}>
             {table.columns.map((c, i) => (
               <DropZone key={c.key} accept={(d) => d.kind === 'col' && d.key !== c.key} onDrop={(d) => insert(d, c.key)} style={{ display: 'flex' }}>
                 <Draggable payload={{ kind: 'col', key: c.key, from: 'col' }} className="canvas-item" style={{ flexDirection: 'column', alignItems: 'stretch', minWidth: 150, background: 'var(--surface-2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <b style={{ flex: 1 }}>{label(c.key)}</b>
+                    <Tooltip title={c.fixed ? 'Frozen: stays in view while the table scrolls sideways. Click to unfreeze.' : 'Freeze: keep this column in view while scrolling sideways'}>
+                      <Button size="small" type="text" icon={c.fixed ? <LockFilled style={{ color: 'var(--ant-color-primary)' }} /> : <UnlockOutlined />} onClick={() => freeze(c.key, !c.fixed)} aria-label={`${c.fixed ? 'Unfreeze' : 'Freeze'} ${label(c.key)}`} /></Tooltip>
                     <Button size="small" type="text" icon={<ArrowLeftOutlined />} onClick={() => nudge(i, -1)} aria-label={`Move ${label(c.key)} left`} />
                     <Button size="small" type="text" icon={<ArrowRightOutlined />} onClick={() => nudge(i, 1)} aria-label={`Move ${label(c.key)} right`} />
                     <Button size="small" type="text" icon={<CloseOutlined />} onClick={() => remove(c.key)} aria-label={`Remove ${label(c.key)}`} />

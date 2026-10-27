@@ -36,14 +36,19 @@ export default function RecordsPage({ page }) {
     api.get(`${base}/records/${id}`).then((r) => setView(r.data)).catch((e) => message.error(errMsg(e)));
   }, [sp, base, message]);
 
+  const nameKey = (roleField('name') || roleField('hostname'))?.key;   // clicking it opens the record popup
   const columns = useMemo(() => {
-    const cols = (cfg.table?.columns || []).map((c) => {
+    // Frozen columns are listed first: a sticky column in the middle would overlap its neighbours.
+    const defs = cfg.table?.columns || [];
+    const ordered = [...defs.filter((c) => c.fixed), ...defs.filter((c) => !c.fixed)];
+    const cols = ordered.map((c) => {
       const f = fields[c.key]; const meta = META[c.key];
-      return { title: meta ? meta.title : f?.label || c.key, key: c.key, width: c.width, sorter: true, ellipsis: true,
+      return { title: meta ? meta.title : f?.label || c.key, key: c.key, width: c.width || (c.fixed ? 160 : undefined), sorter: true, ellipsis: true, fixed: c.fixed ? 'left' : undefined,
         render: (_, r) => {
           const v = meta ? meta.get(r) : r.data[c.key];
           if (meta) return dayjs(v).format('D MMM YYYY HH:mm');
           if (v === undefined || v === null || v === '') return <span style={{ color: 'var(--faint)' }}>-</span>;
+          if (c.key === nameKey) return <a className="rec-link" onClick={() => setView(r)}>{String(v)}</a>;
           if (f.type === 'boolean') return v ? 'Yes' : 'No';
           if (f.type === 'date') return dayjs(v).format('D MMM YYYY');
           if (f.role === 'status') return <Tag color={statusColor(String(v))}>{v}</Tag>;
@@ -60,7 +65,10 @@ export default function RecordsPage({ page }) {
           <Popconfirm title="Move to the recycle bin?" onConfirm={() => api.delete(`${base}/records/${r.id}`).then(() => { message.success('Moved to the recycle bin'); t.reload(); }).catch((e) => message.error(errMsg(e)))}>
             <Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label="Delete" /></Popconfirm></>}
       </Space>) }];
-  }, [cfg, fields, canWrite, base, t, message]);
+  }, [cfg, fields, canWrite, base, t, message, nameKey]);
+  const frozen = (cfg.table?.columns || []).some((c) => c.fixed);
+  const at = view ? t.rows.findIndex((r) => r.id === view.id) : -1;   // neighbours on the current table page for Previous / Next
+  const step = (d) => { const n = t.rows[at + d]; if (n) setView(n); };
 
   const bulk = async (action, value) => {
     try { const r = (await api.post(`${base}/records/bulk`, { ids: sel, action, value })).data; message.success(action === 'assign_tags' ? `Assigned ${r.affected} tag(s)` : `Updated ${r.affected} record(s)`); setSel([]); t.reload(); }
@@ -99,10 +107,13 @@ export default function RecordsPage({ page }) {
             <Button type="link" onClick={() => setSel([])}>Clear selection</Button>
           </div>)}
         <Table rowKey="id" size="small" loading={t.loading} dataSource={t.rows} columns={columns} pagination={t.pagination} onChange={t.onTableChange}
-          rowSelection={canWrite ? { selectedRowKeys: sel, onChange: setSel } : undefined} scroll={{ x: 'max-content' }} rowClassName={(r) => (r.is_decommissioned ? 'row-expired' : '')} />
+          rowSelection={canWrite ? { selectedRowKeys: sel, onChange: setSel, fixed: frozen } : undefined} scroll={{ x: 'max-content' }} rowClassName={(r) => (r.is_decommissioned ? 'row-expired' : '')} />
       </>)}
       <RecordForm page={page} record={form.record} dropdowns={dd} open={form.open} onClose={() => setForm({ open: false, record: null })} onSaved={() => { setForm({ open: false, record: null }); t.reload(); }} />
-      <RecordView page={page} record={view} open={!!view} onClose={closeView} />
+      <RecordView page={page} record={view} open={!!view} onClose={closeView} onStep={step} canStep={{ prev: at > 0, next: at >= 0 && at < t.rows.length - 1 }}
+        onEdit={(r) => { closeView(); setForm({ open: true, record: r }); }} onDecommission={(r) => { closeView(); setDecom(r); setReason(''); }}
+        onDelete={(r) => modal.confirm({ title: 'Move this record to the recycle bin?', okButtonProps: { danger: true },
+          onOk: () => api.delete(`${base}/records/${r.id}`).then(() => { message.success('Moved to the recycle bin'); closeView(); t.reload(); }).catch((e) => message.error(errMsg(e))) })} />
       <ImportModal page={page} open={imp} onClose={() => setImp(false)} onDone={() => { setImp(false); t.reload(); }} />
       <Modal open={!!decom} title="Decommission this record" onCancel={() => setDecom(null)} onOk={doDecommission} okText="Decommission" okButtonProps={{ danger: true }}>
         <p>This frees its asset tag and IP address for reuse and writes a permanent log entry. You can reactivate it later from the Decommissioned page.</p>
