@@ -62,7 +62,8 @@ const requirePageAccess = (pageKey) => (req, res, next) => {
 /** Re-checks the flag in the DB on every call (not trusting anything cached). */
 const requirePasswordAccess = asyncHandler(async (req, res, next) => {
   const { rows } = await db.query('SELECT can_view_passwords, role FROM users WHERE id = $1 AND is_active', [req.user.id]);
-  if (!rows[0] || !(rows[0].can_view_passwords || rows[0].role === 'superadmin'))   // the superadmin always may return res.status(403).json({ error: 'You are not allowed to view passwords' });
+  // The superadmin may always reveal passwords.
+  if (!rows[0] || !(rows[0].can_view_passwords || rows[0].role === 'superadmin')) return res.status(403).json({ error: 'You are not allowed to view passwords' });
   next();
 });
 
