@@ -17,6 +17,8 @@ Nothing is pre-built. There are no fixed "Assets", "Servers" or "Beijing" screen
 
 **Form designer.** *Sort by field order* rearranges each form section to follow the order on the Fields tab. Table-layout columns wrap onto the next row instead of running off the edge.
 
+**Record form look.** Inputs are rounded pills with a bold label and a leading icon chosen by the field's meaning (IP address: laptop, Asset tag: tag, Department: building, ...) or, failing that, its type. Long text and yes/no switches keep their normal look. The same style shows in the designer's live preview.
+
 **Field meanings.** A field can be given a meaning: Name, Hostname, IP address, MAC address, Asset tag, Status, Operating system, Department, Location, Owner, Patching type or Last patched. Meanings are how features that span pages find the right field without caring what you called it:
 
 | Feature | Uses |
@@ -149,6 +151,10 @@ These were verified by running the code against PostgreSQL and a real browser, b
 * Scheduled discovery/backup run in-process (checked every minute). Run a single backend instance, or move them to cron if you scale out.
 * Menu order and migration column preferences are stored per browser (`localStorage`), by design.
 
+**Not yet verified**
+
+* The newest UI work (profile page, record popups, pill fields, light/dark theme, Roles and Tag Ranges tables) was written without a frontend build or browser run, and the smoke test was not re-run after the superadmin and roles changes. Run `npm install && npm run build` in `frontend`, then `npm test` in `backend` against a throw-away database, and check each screen in both themes before relying on it.
+
 ## Layout
 
 ```
@@ -161,7 +167,7 @@ deploy/    inventory-backend.service, nginx-inventory.conf
 
 ## Upgrading
 
-New columns on `users` (user name, company, photo, profile) and on `dropdown_values` (parent value) are added automatically on start, so restart the backend after pulling.
+Schema changes are applied automatically on start, so restart the backend after pulling. Recent additions: `users` (user name, company, photo, profile), `dropdown_values.parent_value`, `department_tag_ranges` (sort order, active flag) and the `builtin_role_overrides` table; starter OS versions are seeded and existing IP-meaning fields are converted to the IP address type once.
 
 ```bash
 git pull
