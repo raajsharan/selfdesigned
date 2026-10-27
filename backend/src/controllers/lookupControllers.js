@@ -21,6 +21,13 @@ exports.tagRanges = { ...tagRangeCrud, list: async (req, res) => {
 const dropdownCrud = simpleCrud({ table: 'dropdown_values', entity: 'dropdown', cols: ['category', 'value', 'sort_order', 'parent_value'],
   orderBy: 'category, sort_order, value', label: (r) => `${r.category}: ${r.value}` });
 exports.dropdownCrud = dropdownCrud;
+/** Delete a whole list (every value of one category). Choice-list fields that point at it simply show no options afterwards. */
+exports.dropdownCategoryRemove = async (req, res) => {
+  const { rows } = await db.query('DELETE FROM dropdown_values WHERE category = $1 RETURNING id', [req.params.name]);
+  if (!rows.length) throw bad('That category has no values');
+  audit(req, 'delete', 'dropdown_category', req.params.name, { name: req.params.name, values: rows.length });
+  res.json({ ok: true, deleted: rows.length });
+};
 
 /**
  * { category: [values], $parents: { category: { value: parentValue } } } for forms; every logged-in user may read it.

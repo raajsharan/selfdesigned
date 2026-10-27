@@ -72,6 +72,17 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
     setActive(cur);
   };
   const deptKey = roleKey('department'); const tagKey = roleKey('asset_tag');
+  // Choosing a department fills the Asset tag with that department's next free tag (the ref drops answers that arrive out of order).
+  const tagReq = useRef(0);
+  const autoTag = async (department) => {
+    const mine = ++tagReq.current;
+    if (!department || !tagKey) return;
+    try {
+      const { data } = await api.get(`/p/${page.slug}/tag-info`, { params: { department } });
+      if (mine !== tagReq.current || !data.range) return;
+      if (data.next) form.setFieldValue(tagKey, data.next); else message.warning(`The tag range for ${department} is full`);
+    } catch { /* no range or no access: leave the tag as it is */ }
+  };
   const name = record && nameKey ? record.data[nameKey] : null;
 
   return (
@@ -88,7 +99,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
           <div className="rfm-note"><span style={{ color: '#ff4d4f' }}>*</span> Required. Everything else is optional.</div>
         </nav>
         <div className="rfm-scroll" ref={scroller} onScroll={onScroll}>
-          <Form form={form} layout="vertical" requiredMark={(label, { required }) => <>{label}{required && <span className="rfm-req">*</span>}</>} onValuesChange={() => setDirty(true)}>
+          <Form form={form} layout="vertical" requiredMark={(label, { required }) => <>{label}{required && <span className="rfm-req">*</span>}</>} onValuesChange={(changed) => { setDirty(true); if (deptKey && deptKey in changed) autoTag(changed[deptKey]); }}>
             <FormFields config={cfg} dropdowns={dropdowns} form={form} secretKeys={record?.secret_keys || []} cards
               renderAfter={(f) => {
                 if (f.type === 'password' && record?.secret_keys.includes(f.key) && (user.can_view_passwords || user.role === 'superadmin')) return (

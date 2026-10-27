@@ -1,15 +1,22 @@
 import { useState } from 'react';
-import { Progress, Select, Tag } from 'antd';
+import { App, Button, Popconfirm, Progress, Select, Tag } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
+import api, { errMsg } from '../../api/client';
 import CrudTable from '../../components/CrudTable';
 import PageHeader from '../../components/PageHeader';
 
 export function Dropdowns() {
-  const [cat, setCat] = useState(); const [cats, setCats] = useState([]);
+  const { message } = App.useApp(); const [cat, setCat] = useState(); const [cats, setCats] = useState([]); const [ver, setVer] = useState(0);
+  const delCategory = () => api.delete(`/dropdowns/category/${cat}`)
+    .then((r) => { message.success(`Deleted the “${cat}” list (${r.data.deleted} values)`); setCat(undefined); setVer((v) => v + 1); })
+    .catch((e) => message.error(errMsg(e)));
   return (
     <div className="page">
       <PageHeader title="Dropdown Master" sub="Shared lists of choices. Any “choice list” field in the Page Designer can use one by its category name." />
-      <div className="toolbar"><Select allowClear placeholder="Show one category" style={{ width: 220 }} onChange={setCat} options={cats.map((c) => ({ value: c, label: c }))} /></div>
-      <CrudTable path="/dropdowns" listPath="/dropdowns/all" createLabel="Add value" key={cat || 'all'}
+      <div className="toolbar"><Select allowClear value={cat} placeholder="Show one category" style={{ width: 220 }} onChange={setCat} options={cats.map((c) => ({ value: c, label: c }))} />
+        {cat && <Popconfirm title={`Delete the whole “${cat}” list?`} description="Every value in it is removed. Choice-list fields that use it will have no options." okText="Delete list" okButtonProps={{ danger: true }} onConfirm={delCategory}>
+          <Button danger icon={<DeleteOutlined />}>Delete category</Button></Popconfirm>}</div>
+      <CrudTable path="/dropdowns" listPath="/dropdowns/all" createLabel="Add value" key={`${cat || 'all'}-${ver}`}
         transform={(rows) => { setCats([...new Set(rows.map((r) => r.category))].sort()); return rows.filter((r) => !cat || r.category === cat); }}
         fields={[{ name: 'category', label: 'Category', required: true, default: cat, help: 'Lower-case letters and underscores, for example rack_location. A new name creates a new list.' },
           { name: 'value', label: 'Value', required: true },

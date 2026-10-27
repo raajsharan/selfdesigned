@@ -61,6 +61,7 @@ api.get('/dropdowns', auth, h(lookups.dropdownsMap));
 api.get('/dropdowns/all', auth, requirePageAccess('admin-dropdowns'), h(lookups.dropdownCrud.list));
 api.post('/dropdowns', auth, requirePageAccess('admin-dropdowns'), body('category').matches(/^[a-z_]{2,64}$/), body('value').isString().trim().notEmpty().isLength({ max: 255 }), validate, h(lookups.dropdownCrud.create));
 api.put('/dropdowns/:id', auth, requirePageAccess('admin-dropdowns'), intId, validate, h(lookups.dropdownCrud.update));
+api.delete('/dropdowns/category/:name', auth, requirePageAccess('admin-dropdowns'), param('name').matches(/^[a-z_]{2,64}$/), validate, h(lookups.dropdownCategoryRemove));
 api.delete('/dropdowns/:id', auth, requirePageAccess('admin-dropdowns'), intId, validate, h(lookups.dropdownCrud.remove));
 
 api.put('/branding', auth, requirePageAccess('admin-branding'), body('app_name').optional().isString().isLength({ max: 64 }), validate, h(lookups.putBranding));

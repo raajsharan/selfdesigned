@@ -29,17 +29,25 @@ async function ensureSchema() {
     if (!fs.existsSync(full)) { console.warn(`[schema] missing ${full}`); continue; }
     await db.query(fs.readFileSync(full, 'utf8'));
   }
-  for (const [category, values] of Object.entries(DEFAULT_DROPDOWNS)) {
-    for (let i = 0; i < values.length; i++) {
-      await db.query(
-        'INSERT INTO dropdown_values (category, value, sort_order) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [category, values[i], i]);
+  // Starter lists are seeded once, on a brand-new database. Seeding on every start brought back whatever an admin had deleted
+  // in Dropdown Master. An existing install (it already has users or pages) is marked as seeded without adding anything.
+  if (!(await getSetting('seeded_dropdowns', {})).done) {
+    const { n } = (await db.query('SELECT (SELECT COUNT(*) FROM users) + (SELECT COUNT(*) FROM inventory_pages) AS n')).rows[0];
+    if (Number(n) === 0) {
+      for (const [category, values] of Object.entries(DEFAULT_DROPDOWNS)) {
+        for (let i = 0; i < values.length; i++) {
+          await db.query(
+            'INSERT INTO dropdown_values (category, value, sort_order) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [category, values[i], i]);
+        }
+      }
+      for (const [parent, versions] of Object.entries(DEFAULT_OS_VERSIONS)) {
+        for (let i = 0; i < versions.length; i++) {
+          await db.query(
+            "INSERT INTO dropdown_values (category, value, sort_order, parent_value) VALUES ('os_version',$1,$2,$3) ON CONFLICT DO NOTHING", [versions[i], i, parent]);
+        }
+      }
     }
-  }
-  for (const [parent, versions] of Object.entries(DEFAULT_OS_VERSIONS)) {
-    for (let i = 0; i < versions.length; i++) {
-      await db.query(
-        "INSERT INTO dropdown_values (category, value, sort_order, parent_value) VALUES ('os_version',$1,$2,$3) ON CONFLICT DO NOTHING", [versions[i], i, parent]);
-    }
+    await setSetting('seeded_dropdowns', { done: true });
   }
   // One-time: pages' fields that mean "IP address" become the IP address type (x.x.x.x). Admins can change them back afterwards.
   if (!(await getSetting('migrated_ip_field_type', {})).done) {
