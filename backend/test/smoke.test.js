@@ -227,11 +227,11 @@ test('soft delete and recycle bin', async () => {
 
 test('bulk actions and tag-range assignment', async () => {
   const P = S.pA.slug; const dept = `Dept-${run}`;
-  assert.equal((await api('POST', '/department-tag-ranges', { token: S.admin, body: { department: dept, prefix: `E${run.slice(-3).toUpperCase()}-`, range_start: 100, range_end: 102, pad: 4 } })).status, 201);
+  assert.equal((await api('POST', '/department-tag-ranges', { token: S.admin, body: { department: dept, range_start: 100, range_end: 102, pad: 4 } })).status, 201);
   const ids = [];
   for (let i = 0; i < 2; i++) ids.push((await api('POST', `/p/${P}/records`, { token: S.admin, body: { data: { mac: mac(40 + i), department: dept } } })).json.id);
   const b = await api('POST', `/p/${P}/records/bulk`, { token: S.admin, body: { ids, action: 'assign_tags' } });
-  assert.equal(b.json.affected, 2, b.text); assert.match(b.json.assigned[0].tag, /-0100$/);
+  assert.equal(b.json.affected, 2, b.text); assert.match(b.json.assigned[0].tag, /^0100$/);
   assert.equal((await api('POST', `/p/${P}/records`, { token: S.admin, body: { data: { mac: mac(50), department: dept, asset_tag: 'WRONG-1' } } })).status, 400, 'tag outside range refused');
   assert.equal((await api('POST', `/p/${P}/records/bulk`, { token: S.admin, body: { ids, action: 'status', value: 'Under Maintenance' } })).json.affected, 2);
   assert.equal((await api('GET', `/p/${P}/records/${ids[0]}`, { token: S.admin })).json.data.status, 'Under Maintenance');

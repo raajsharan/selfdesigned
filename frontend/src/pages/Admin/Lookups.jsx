@@ -27,13 +27,12 @@ export function TagRanges() {
   return (
     <div className="page">
       <PageHeader title="Department Tag Ranges" sub="Give each department its own range of asset tags. A page enforces them when it has fields meaning “Department” and “Asset tag”." />
-      <CrudTable path="/department-tag-ranges" createLabel="Add range" fields={[{ name: 'department', label: 'Department', required: true }, { name: 'prefix', label: 'Prefix', help: 'For example HYD-', default: '' },
-        { name: 'range_start', label: 'First number', type: 'number', required: true }, { name: 'range_end', label: 'Last number', type: 'number', required: true }, { name: 'pad', label: 'Digits (zero-padded)', type: 'number', default: 4 },
+      <CrudTable path="/department-tag-ranges" createLabel="Add range" fields={[{ name: 'department', label: 'Department', required: true }, { name: 'range_start', label: 'First number', type: 'number', required: true }, { name: 'range_end', label: 'Last number', type: 'number', required: true }, { name: 'pad', label: 'Digits (zero-padded)', type: 'number', default: 4 },
         { name: 'sort_order', label: 'Sort', type: 'number', default: 0, help: 'Lower numbers are listed first' }, { name: 'is_active', label: 'Active', type: 'bool', default: true, help: 'Inactive ranges are not enforced on asset tags' }]}
         columns={[
           { title: 'Sort', dataIndex: 'sort_order', width: 70 },
           { title: 'Department', dataIndex: 'department' },
-          { title: 'Range', render: (_, r) => <span className="chip blue">{r.prefix}{String(r.range_start).padStart(r.pad, '0')}-{String(r.range_end).padStart(r.pad, '0')}</span> },
+          { title: 'Range', render: (_, r) => <span className="chip blue">{String(r.range_start).padStart(r.pad, '0')}-{String(r.range_end).padStart(r.pad, '0')}</span> },
           { title: 'Total', dataIndex: 'total', render: (v) => <span className="num-lg">{fmt(v)}</span> },
           { title: 'Used', dataIndex: 'used', render: (v) => <span className="chip red">{fmt(v)}</span> },
           { title: 'Free', dataIndex: 'free', render: (v) => <span className="chip green">{fmt(v)}</span> },

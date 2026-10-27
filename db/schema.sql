@@ -166,12 +166,12 @@ ALTER TABLE dropdown_values ADD COLUMN IF NOT EXISTS parent_value VARCHAR(255);
 CREATE TABLE IF NOT EXISTS department_tag_ranges (
   id          SERIAL PRIMARY KEY,
   department  VARCHAR(128) UNIQUE NOT NULL,
-  prefix      VARCHAR(16) NOT NULL DEFAULT '',
   range_start INT NOT NULL,
   range_end   INT NOT NULL,
   pad         INT NOT NULL DEFAULT 4,
   CHECK (range_end >= range_start)
 );
+ALTER TABLE department_tag_ranges DROP COLUMN IF EXISTS prefix;   -- tags are plain zero-padded numbers
 ALTER TABLE department_tag_ranges ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
 ALTER TABLE department_tag_ranges ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;   -- inactive ranges are not enforced
 

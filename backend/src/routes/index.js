@@ -56,7 +56,7 @@ const crud = (path, page, c, rules = []) => {
   api.put(`${path}/:id`, auth, requirePageAccess(page), intId, validate, h(c.update));
   api.delete(`${path}/:id`, auth, requirePageAccess(page), intId, validate, h(c.remove));
 };
-crud('/department-tag-ranges', 'admin-tag-ranges', lookups.tagRanges, [body('department').isString().trim().notEmpty(), body('range_start').isInt({ min: 0 }), body('range_end').isInt({ min: 0 }), body('prefix').optional().isString().isLength({ max: 16 }), body('sort_order').optional().isInt({ min: 0, max: 100000 }), body('is_active').optional().isBoolean()]);
+crud('/department-tag-ranges', 'admin-tag-ranges', lookups.tagRanges, [body('department').isString().trim().notEmpty(), body('range_start').isInt({ min: 0 }), body('range_end').isInt({ min: 0 }), body('sort_order').optional().isInt({ min: 0, max: 100000 }), body('is_active').optional().isBoolean()]);
 api.get('/dropdowns', auth, h(lookups.dropdownsMap));
 api.get('/dropdowns/all', auth, requirePageAccess('admin-dropdowns'), h(lookups.dropdownCrud.list));
 api.post('/dropdowns', auth, requirePageAccess('admin-dropdowns'), body('category').matches(/^[a-z_]{2,64}$/), body('value').isString().trim().notEmpty().isLength({ max: 255 }), validate, h(lookups.dropdownCrud.create));
