@@ -6,6 +6,7 @@ import api, { download, errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { usePages } from '../../context/PagesContext';
 import PageHeader, { Stat } from '../../components/PageHeader';
+import { pager } from '../../utils/pager';
 
 const sev = (t) => t && <span>{[['C', t.critical, '#cf1322'], ['H', t.high, '#d46b08'], ['M', t.medium, '#c77700'], ['L', t.low, 'var(--muted)']].map(([l, n, c]) => <span key={l} style={{ color: n ? c : 'var(--faint)', marginRight: 8 }}><b>{l}</b> {n}</span>)}</span>;
 
@@ -32,9 +33,9 @@ export default function TenableReport() {
       <div className="toolbar"><Input.Search allowClear placeholder="Search name, IP, MAC" style={{ width: 260 }} onSearch={setQ} />
         <Select allowClear placeholder="All pages" style={{ width: 190 }} options={pages.filter((p) => p.kind === 'records').map((p) => ({ value: p.slug, label: p.title }))} onChange={setSource} /></div>
       <Tabs activeKey={tab} onChange={setTab} items={[
-        { key: 'matched', label: `Matched (${s.matched})`, children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={filt(d.matched)} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }} columns={[...invCols, { title: 'Findings', render: (_, r) => sev(r.tenable) }, { title: 'Last seen in Tenable', render: (_, r) => (r.tenable.last_seen ? dayjs(r.tenable.last_seen).format('D MMM YYYY') : '-') }]} /> },
-        { key: 'not_in_tenable', label: `Not in Tenable (${s.not_in_tenable})`, children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={filt(d.not_in_tenable)} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }} columns={invCols} /> },
-        { key: 'tenable_only', label: `Tenable only (${s.tenable_only})`, children: source ? <div className="warn-banner">Tenable-only assets are checked against the whole estate. Clear the page filter to see them.</div> : <Table rowKey="id" size="small" dataSource={filt(d.tenable_only)} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }} columns={[{ title: 'Hostname', dataIndex: 'hostname' }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'OS', dataIndex: 'os' }, { title: 'Findings', render: (_, r) => sev(r) }]} /> },
+        { key: 'matched', label: `Matched (${s.matched})`, children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={filt(d.matched)} pagination={pager(25, (filt(d.matched))?.length ?? 0)} scroll={{ x: 'max-content' }} columns={[...invCols, { title: 'Findings', render: (_, r) => sev(r.tenable) }, { title: 'Last seen in Tenable', render: (_, r) => (r.tenable.last_seen ? dayjs(r.tenable.last_seen).format('D MMM YYYY') : '-') }]} /> },
+        { key: 'not_in_tenable', label: `Not in Tenable (${s.not_in_tenable})`, children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={filt(d.not_in_tenable)} pagination={pager(25, (filt(d.not_in_tenable))?.length ?? 0)} scroll={{ x: 'max-content' }} columns={invCols} /> },
+        { key: 'tenable_only', label: `Tenable only (${s.tenable_only})`, children: source ? <div className="warn-banner">Tenable-only assets are checked against the whole estate. Clear the page filter to see them.</div> : <Table rowKey="id" size="small" dataSource={filt(d.tenable_only)} pagination={pager(25, (filt(d.tenable_only))?.length ?? 0)} scroll={{ x: 'max-content' }} columns={[{ title: 'Hostname', dataIndex: 'hostname' }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'OS', dataIndex: 'os' }, { title: 'Findings', render: (_, r) => sev(r) }]} /> },
       ]} />
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="Import Tenable export" width={460}>
         <p>Upload an .xlsx export from Tenable. Recognised columns: Name / DNS Name / Hostname, IP Address, MAC Address, Operating System, Critical, High, Medium, Low, Last Seen.</p>

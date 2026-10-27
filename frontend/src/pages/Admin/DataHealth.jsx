@@ -3,6 +3,7 @@ import { Spin, Table, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import api from '../../api/client';
 import PageHeader, { Stat } from '../../components/PageHeader';
+import { pager } from '../../utils/pager';
 
 export default function DataHealth() {
   const [d, setD] = useState(null);
@@ -16,10 +17,10 @@ export default function DataHealth() {
       <div className="stat-grid"><Stat label="Missing IP" value={c.missing_ip} tone={tone(c.missing_ip)} /><Stat label="Missing asset tag" value={c.missing_tag} tone={tone(c.missing_tag)} />
         <Stat label="Duplicate MACs" value={c.duplicate_macs} tone={tone(c.duplicate_macs)} /><Stat label={`Not updated in ${d.stale_days}+ days`} value={c.stale} tone={tone(c.stale)} /></div>
       <Tabs items={[
-        { key: 'ip', label: 'Missing IP', children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={d.issues.missing_ip} columns={cols} pagination={{ pageSize: 20, hideOnSinglePage: true }} /> },
-        { key: 'tag', label: 'Missing asset tag', children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={d.issues.missing_tag} columns={cols} pagination={{ pageSize: 20, hideOnSinglePage: true }} /> },
-        { key: 'mac', label: 'Duplicate MACs', children: <Table rowKey="mac" size="small" dataSource={d.issues.duplicate_macs} pagination={{ pageSize: 20, hideOnSinglePage: true }} columns={[{ title: 'MAC', dataIndex: 'mac', render: (v) => <span className="mono">{v}</span> }, { title: 'Used by', dataIndex: 'n' }, { title: 'Assets', render: (_, r) => r.assets.map((a) => `${a.name || '#' + a.id} (${a.source})`).join(', ') }]} /> },
-        { key: 'stale', label: 'Stale records', children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={d.issues.stale} columns={[...cols, { title: 'Last updated', dataIndex: 'updated_at', render: (v) => dayjs(v).format('D MMM YYYY') }]} pagination={{ pageSize: 20, hideOnSinglePage: true }} /> },
+        { key: 'ip', label: 'Missing IP', children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={d.issues.missing_ip} columns={cols} pagination={pager(20, (d.issues.missing_ip)?.length ?? 0)} /> },
+        { key: 'tag', label: 'Missing asset tag', children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={d.issues.missing_tag} columns={cols} pagination={pager(20, (d.issues.missing_tag)?.length ?? 0)} /> },
+        { key: 'mac', label: 'Duplicate MACs', children: <Table rowKey="mac" size="small" dataSource={d.issues.duplicate_macs} pagination={pager(20, (d.issues.duplicate_macs)?.length ?? 0)} columns={[{ title: 'MAC', dataIndex: 'mac', render: (v) => <span className="mono">{v}</span> }, { title: 'Used by', dataIndex: 'n' }, { title: 'Assets', render: (_, r) => r.assets.map((a) => `${a.name || '#' + a.id} (${a.source})`).join(', ') }]} /> },
+        { key: 'stale', label: 'Stale records', children: <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" dataSource={d.issues.stale} columns={[...cols, { title: 'Last updated', dataIndex: 'updated_at', render: (v) => dayjs(v).format('D MMM YYYY') }]} pagination={pager(20, (d.issues.stale)?.length ?? 0)} /> },
       ]} />
     </div>
   );

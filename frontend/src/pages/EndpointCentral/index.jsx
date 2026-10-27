@@ -5,6 +5,7 @@ import api, { errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import ConfigModal from './ConfigModal';
+import { pager } from '../../utils/pager';
 
 export default function EndpointCentral() {
   const { message } = App.useApp(); const { has } = useAuth();
@@ -26,10 +27,10 @@ export default function EndpointCentral() {
       {err && <Alert type="error" showIcon message={err} style={{ marginBottom: 12 }} />}
       <div className="toolbar"><Input.Search allowClear placeholder="Filter" style={{ width: 260 }} onSearch={setQ} /></div>
       <Tabs activeKey={tab} onChange={setTab} items={[
-        { key: 'agents', label: 'Agents', children: <Table rowKey={(r) => r.resource_id ?? r.name} size="small" loading={loading} dataSource={f(rows.agents)} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }}
+        { key: 'agents', label: 'Agents', children: <Table rowKey={(r) => r.resource_id ?? r.name} size="small" loading={loading} dataSource={f(rows.agents)} pagination={pager(25, (f(rows.agents))?.length ?? 0)} scroll={{ x: 'max-content' }}
           columns={[{ title: 'Computer', dataIndex: 'name' }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'OS', dataIndex: 'os' }, { title: 'Agent version', dataIndex: 'agent_version' }, { title: 'Status', dataIndex: 'status', render: (s) => <Tag color={s === 'Live' ? 'green' : s === 'Down' ? 'red' : 'orange'}>{s}</Tag> },
             { title: 'Last contact', dataIndex: 'last_contact', render: (v) => (v ? dayjs(v).format('D MMM YYYY HH:mm') : '-') }]} /> },
-        { key: 'software', label: 'Software inventory', children: <Table rowKey={(r, i) => `${r.name}-${r.version}-${i}`} size="small" loading={loading} dataSource={f(rows.software)} pagination={{ pageSize: 25, hideOnSinglePage: true }}
+        { key: 'software', label: 'Software inventory', children: <Table rowKey={(r, i) => `${r.name}-${r.version}-${i}`} size="small" loading={loading} dataSource={f(rows.software)} pagination={pager(25, (f(rows.software))?.length ?? 0)}
           columns={[{ title: 'Software', dataIndex: 'name' }, { title: 'Version', dataIndex: 'version' }, { title: 'Vendor', dataIndex: 'vendor' }, { title: 'Installed on', dataIndex: 'installed_on' }]} /> },
       ]} />
       <ConfigModal open={cfg} onClose={() => setCfg(false)} onSaved={() => load(tab, true)} />

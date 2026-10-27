@@ -6,6 +6,7 @@ import api, { errMsg } from '../../../api/client';
 import { useAuth } from '../../../context/AuthContext';
 import { downloadCsv } from '../../../utils/csv';
 import { ColumnManager, CustomCell, HOST_STAGE, NotesCell, StatusSelect, SummaryCards, useColumnPrefs } from './shared';
+import { pager } from '../../../utils/pager';
 
 const BASE = [
   { key: 'host_name', title: 'Host' }, { key: 'datacenter', title: 'Datacenter' }, { key: 'cluster', title: 'Cluster' },
@@ -82,7 +83,7 @@ export default function HostsTab({ project, tab, customFields, onChanged }) {
         {canWrite && <Upload accept=".xlsx" showUploadList={false} beforeUpload={importXlsx}><Button>Import Excel</Button></Upload>}
       </div>
       {data && !data.summary.total && <Alert type="info" showIcon style={{ marginBottom: 12 }} message="No hosts yet" description="Import a sheet named “Hosts”, or ask an admin to sync from VMware discovery in Admin → Migration Config." />}
-      <Table rowKey="id" size="small" loading={loading} dataSource={data?.rows || []} columns={columns} scroll={{ x: 'max-content' }} pagination={{ pageSize: 50, hideOnSinglePage: true, showTotal: (t) => `${t} hosts` }}
+      <Table rowKey="id" size="small" loading={loading} dataSource={data?.rows || []} columns={columns} scroll={{ x: 'max-content' }} pagination={pager(50, (data?.rows || [])?.length ?? 0, { showTotal: (t) => `${t} hosts` })}
         rowClassName={(r) => { const d = days(r.license_expiry); return d === null ? '' : d < 0 ? 'row-expired' : d <= 30 ? 'row-soon' : ''; }} />
       <Modal open={!!vault} title={`iDRAC access: ${vault?.host_name}`} onCancel={() => setVault(null)} onOk={saveVault} okText="Save" okButtonProps={{ disabled: !canWrite }} destroyOnClose>
         <Form form={vForm} layout="vertical" disabled={!canWrite}>

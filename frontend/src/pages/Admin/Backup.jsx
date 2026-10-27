@@ -3,6 +3,7 @@ import { Alert, App, Button, InputNumber, Select, Switch, Table, Tag, Upload, Po
 import dayjs from 'dayjs';
 import api, { download, errMsg } from '../../api/client';
 import PageHeader from '../../components/PageHeader';
+import { pager } from '../../utils/pager';
 
 const size = (n) => (n == null ? '-' : n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`);
 export default function Backup() {
@@ -24,7 +25,7 @@ export default function Backup() {
           <Button disabled={!table} onClick={() => download(`/backup/csv/${table}`, `${table}.csv`)}>Download CSV</Button>
           <Upload accept=".csv" showUploadList={false} beforeUpload={restoreCsv} disabled={!table || !d.restorable.includes(table)}><Button disabled={!table || !d.restorable.includes(table)}>Restore from CSV</Button></Upload></div></div>
       <b>History</b>
-      <Table rowKey="id" size="small" style={{ marginTop: 8 }} dataSource={d.history} pagination={{ pageSize: 10, hideOnSinglePage: true }}
+      <Table rowKey="id" size="small" style={{ marginTop: 8 }} dataSource={d.history} pagination={pager(10, (d.history)?.length ?? 0)}
         columns={[{ title: 'When', dataIndex: 'created_at', render: (v) => dayjs(v).format('D MMM YYYY HH:mm') }, { title: 'Type', dataIndex: 'kind', render: (v) => <Tag>{v}</Tag> }, { title: 'Size', dataIndex: 'size_bytes', render: size },
           { title: 'Result', render: (_, r) => (r.status === 'ok' ? <Tag color="green">OK</Tag> : <span style={{ color: '#cf1322' }}>{r.error}</span>) }, { title: 'By', dataIndex: 'created_by' },
           { title: '', render: (_, r) => r.kind === 'csv' && r.status === 'ok' && <Popconfirm title="Restore missing rows from this backup?" onConfirm={() => api.post(`/backup/restore/${r.id}`).then((x) => message.success(`Restored: ${Object.entries(x.data).map(([k, v]) => `${k} ${v}`).join(', ')}`)).catch((e) => message.error(errMsg(e)))}><Button size="small">Restore</Button></Popconfirm> }]} />

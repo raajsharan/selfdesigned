@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { App } from 'antd';
 import api, { errMsg } from '../api/client';
+import { PAGE_SIZES } from '../utils/pager';
 
 /** Server-paginated list state shared by the inventory-style pages. */
 export default function useServerTable(path, initialFilters = {}, pageSize = 25) {
@@ -27,6 +28,6 @@ export default function useServerTable(path, initialFilters = {}, pageSize = 25)
   useEffect(() => { load(); }, [load]);
   const setFilter = (patch) => { setPage(1); setFilters((f) => ({ ...f, ...patch })); };
   return { rows, total, loading, page, size, filters, setFilter, setPage, setSize, setSort, reload: load,
-    pagination: { current: page, pageSize: size, total, showSizeChanger: true, showTotal: (t) => `${t} records`, onChange: (p, s) => { setPage(p); setSize(s); } },
+    pagination: { current: page, pageSize: size, total, showSizeChanger: true, pageSizeOptions: PAGE_SIZES, showTotal: (t) => `${t} records`, onChange: (p, s) => { setPage(p); setSize(s); } },
     onTableChange: (_p, _f, sorter) => { const k = sorter?.columnKey ?? sorter?.field; setSort(k && sorter.order ? { sort: k, order: sorter.order === 'ascend' ? 'asc' : 'desc' } : {}); } };
 }

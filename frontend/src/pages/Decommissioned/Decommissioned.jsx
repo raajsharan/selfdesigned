@@ -6,6 +6,7 @@ import api, { errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import { usePages } from '../../context/PagesContext';
+import { pager } from '../../utils/pager';
 
 
 export default function Decommissioned() {
@@ -24,7 +25,7 @@ export default function Decommissioned() {
         <Input.Search allowClear placeholder="Search name, tag, IP, reason" style={{ width: 300 }} onSearch={setQ} />
         <Select allowClear placeholder="Page" style={{ width: 190 }} onChange={setSource} options={pages.filter((p) => p.kind === 'records').map((p) => ({ value: p.slug, label: p.title }))} />
       </div>
-      <Table rowKey="id" size="small" loading={loading} dataSource={rows} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }}
+      <Table rowKey="id" size="small" loading={loading} dataSource={rows} pagination={pager(25, (rows)?.length ?? 0)} scroll={{ x: 'max-content' }}
         columns={[
           { title: 'Asset', dataIndex: 'asset_name' }, { title: 'Page', render: (_, r) => r.source_title || <span style={{ color: 'var(--faint)' }}>{r.source} (deleted)</span> },
           { title: 'Released tag', dataIndex: 'asset_tag', render: (v) => v || '-' }, { title: 'Released IP', dataIndex: 'ip_address', render: (v) => v || '-' },

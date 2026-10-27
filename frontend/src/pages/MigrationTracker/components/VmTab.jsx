@@ -5,6 +5,7 @@ import api, { errMsg } from '../../../api/client';
 import { useAuth } from '../../../context/AuthContext';
 import { downloadCsv } from '../../../utils/csv';
 import { ColumnManager, CustomCell, NotesCell, StatusSelect, SummaryCards, VM_STATUS, useColumnPrefs } from './shared';
+import { pager } from '../../../utils/pager';
 
 const KIND = { bomgar: 'bomgar-vms', security: 'security-vms', standalone: 'standalone-esxi', custom: 'custom-vms' };
 const BASE = [
@@ -71,7 +72,7 @@ export default function VmTab({ project, tab, customFields, onChanged }) {
         {canWrite && <Upload accept=".xlsx" showUploadList={false} beforeUpload={importXlsx}><Button>Import Excel</Button></Upload>}
       </div>
       {data && !data.summary.total && <Alert type="info" showIcon style={{ marginBottom: 12 }} message="No VMs on this tab yet" description="Import an Excel sheet named after this tab, or ask an admin to sync from VMware discovery in Admin → Migration Config." />}
-      <Table rowKey="id" size="small" loading={loading} dataSource={data?.rows || []} columns={columns} scroll={{ x: 'max-content' }} pagination={{ pageSize: 50, showSizeChanger: true, showTotal: (t) => `${t} VMs`, hideOnSinglePage: true }} />
+      <Table rowKey="id" size="small" loading={loading} dataSource={data?.rows || []} columns={columns} scroll={{ x: 'max-content' }} pagination={pager(50, (data?.rows || [])?.length ?? 0, { showTotal: (t) => `${t} VMs` })} />
     </>
   );
 }

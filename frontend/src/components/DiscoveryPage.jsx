@@ -8,6 +8,7 @@ import PageHeader, { Stat } from './PageHeader';
 import useServerTable from './useServerTable';
 import AddToInventoryModal from './AddToInventoryModal';
 import CrudTable from './CrudTable';
+import { pager } from '../utils/pager';
 
 const SERVER_FIELDS = {
   vmware: [{ name: 'name', label: 'Name', required: true }, { name: 'host', label: 'vCenter / ESXi host', required: true, help: 'Hostname or IP, without https://' }, { name: 'username', label: 'Username', required: true },
@@ -77,16 +78,16 @@ export default function DiscoveryPage({ type, title, sub }) {
         {[['By state', 'by_state'], ['By server', 'by_server'], ['Top operating systems', 'by_os'], [`Top ${type === 'vmware' ? 'hosts' : 'nodes'}`, 'by_host']].map(([h, k]) => <div className="card" key={k}><b>{h}</b><div style={{ marginTop: 10 }}><BarList rows={d.dashboard[k]} /></div></div>)}</div></>) },
     { key: 'drift', label: 'Drift', children: !d.drift ? null : (<>
       <div className="stat-grid"><Stat label="In sync" value={d.drift.summary.in_sync} tone="good" /><Stat label="Differences" value={d.drift.summary.drift} tone={d.drift.summary.drift ? 'warn' : ''} /><Stat label="Not in inventory" value={d.drift.summary.not_in_inventory} tone={d.drift.summary.not_in_inventory ? 'warn' : ''} /></div>
-      <Table rowKey="id" size="small" dataSource={d.drift.rows} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }}
+      <Table rowKey="id" size="small" dataSource={d.drift.rows} pagination={pager(25, (d.drift.rows)?.length ?? 0)} scroll={{ x: 'max-content' }}
         columns={[{ title: 'VM', dataIndex: 'name' }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'Server', dataIndex: 'server_name' },
           { title: 'Result', render: (_, r) => r.status === 'not_in_inventory' ? <Tag color="orange">Not in inventory</Tag> : <Tag color="gold">{r.issues.join('; ')}</Tag> }]} /></>) },
     { key: 'topology', label: 'Topology', children: !d.topology ? null : <Tree showLine defaultExpandAll selectable={false} treeData={d.topology.map((dc) => ({ key: dc.name, title: <b>{dc.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({dc.vms} VMs)</span></b>,
       children: dc.clusters.map((cl) => ({ key: `${dc.name}/${cl.name}`, title: `${cl.name} (${cl.vms} VMs)`, children: cl.hosts.map((h) => ({ key: `${dc.name}/${cl.name}/${h.name}`, title: `${h.name}: ${h.vms} VMs${h.off ? `, ${h.off} off` : ''}` })) })) }))} /> },
     { key: 'snapshots', label: 'Snapshots', children: !d.snapshots ? null : (<>
       {d.snapshots.note && <div className="warn-banner">{d.snapshots.note}</div>}
-      <Table rowKey="id" size="small" dataSource={d.snapshots.rows} pagination={{ pageSize: 25, hideOnSinglePage: true }} locale={{ emptyText: 'No snapshots recorded' }}
+      <Table rowKey="id" size="small" dataSource={d.snapshots.rows} pagination={pager(25, (d.snapshots.rows)?.length ?? 0)} locale={{ emptyText: 'No snapshots recorded' }}
         columns={[{ title: 'VM', dataIndex: 'vm_name' }, { title: 'Snapshot', dataIndex: 'snapshot' }, { title: 'Description', dataIndex: 'description' }, { title: 'Created', dataIndex: 'created_at', render: (v) => (v ? dayjs(v).format('D MMM YYYY') : '-') }, { title: 'Server', dataIndex: 'server_name' }]} /></>) },
-    { key: 'stale', label: 'Stale VMs', children: !d.stale ? null : <Table rowKey="id" size="small" dataSource={d.stale} pagination={{ pageSize: 25, hideOnSinglePage: true }} locale={{ emptyText: 'Nothing stale' }}
+    { key: 'stale', label: 'Stale VMs', children: !d.stale ? null : <Table rowKey="id" size="small" dataSource={d.stale} pagination={pager(25, (d.stale)?.length ?? 0)} locale={{ emptyText: 'Nothing stale' }}
       columns={[{ title: 'VM', dataIndex: 'name' }, { title: 'Reason', dataIndex: 'reason' }, { title: 'Server', dataIndex: 'server_name' }, { title: 'Last seen', dataIndex: 'last_seen', render: (v) => dayjs(v).format('D MMM YYYY HH:mm') }]} /> },
     { key: 'mac', label: 'MAC lookup', children: (<>
       <Space.Compact style={{ width: 420, marginBottom: 12 }}><Input value={mac} onChange={(e) => setMac(e.target.value)} onPressEnter={lookup} placeholder="Full or partial MAC, e.g. AA:BB:CC" /><Button type="primary" onClick={lookup}>Look up</Button></Space.Compact>

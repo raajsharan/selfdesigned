@@ -5,6 +5,7 @@ import api, { errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import { usePages } from '../../context/PagesContext';
+import { pager } from '../../utils/pager';
 
 export default function NessusStatus() {
   const { message } = App.useApp(); const { canWrite, user } = useAuth(); const { bySlug } = usePages(); const isAdmin = ['admin', 'superadmin'].includes(user.role);
@@ -31,7 +32,7 @@ export default function NessusStatus() {
         <div className="stat warn"><div className="n">{rows.filter((r) => !r.agent_installed).length}</div><div className="l">No agent recorded</div></div></div>
       <div className="toolbar"><Input.Search allowClear placeholder="Search name or IP" style={{ width: 260 }} onSearch={setQ} />
         <Select allowClear placeholder="Agent" style={{ width: 150 }} options={[{ value: 'yes', label: 'Installed' }, { value: 'no', label: 'Not installed' }]} onChange={setOnly} /></div>
-      <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" loading={loading} dataSource={data} pagination={{ pageSize: 25, hideOnSinglePage: true }} scroll={{ x: 'max-content' }}
+      <Table rowKey={(r) => `${r.source}-${r.id}`} size="small" loading={loading} dataSource={data} pagination={pager(25, (data)?.length ?? 0)} scroll={{ x: 'max-content' }}
         columns={[{ title: 'Page', dataIndex: 'source', render: (s) => bySlug[s]?.title || s }, { title: 'Name', render: (_, r) => r.vm_name || r.hostname }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'OS', dataIndex: 'os_type' },
           { title: 'Agent', render: (_, r) => <Switch size="small" checked={r.agent_installed} disabled={!canWrite} onChange={(c) => toggle(r, c)} /> }, { title: 'Version', dataIndex: 'agent_version', render: (v) => v || '-' },
           { title: 'Checked', dataIndex: 'last_checked_at', render: (v) => (v ? dayjs(v).format('D MMM YYYY') : '-') },

@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import api, { errMsg } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import PageHeader from '../components/PageHeader';
+import { pager } from '../utils/pager';
 
 export default function RecycleBin() {
   const { message } = App.useApp(); const { canWrite, user } = useAuth();
@@ -15,7 +16,7 @@ export default function RecycleBin() {
   return (
     <div className="page">
       <PageHeader title="Recycle Bin" sub="Deleted records can be restored. Purging removes them for good (admins only)." />
-      <Table rowKey="id" size="small" loading={loading} dataSource={rows} pagination={{ pageSize: 25, hideOnSinglePage: true }}
+      <Table rowKey="id" size="small" loading={loading} dataSource={rows} pagination={pager(25, (rows)?.length ?? 0)}
         columns={[{ title: 'Page', dataIndex: 'page_title' }, { title: 'Name', render: (_, r) => r.vm_name || r.hostname || Object.values(r.data || {}).find((v) => typeof v === 'string') || `#${r.id}` }, { title: 'IP', dataIndex: 'ip_address' },
           { title: 'MAC', dataIndex: 'mac_address', render: (v) => <span className="mono">{v}</span> }, { title: 'Tag', dataIndex: 'asset_tag' },
           { title: 'Deleted', dataIndex: 'deleted_at', render: (v) => dayjs(v).format('D MMM YYYY HH:mm') },

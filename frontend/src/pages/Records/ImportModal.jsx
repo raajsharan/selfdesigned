@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, App, Button, Modal, Radio, Table, Tag, Tooltip, Upload } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import api, { download, errMsg } from '../../api/client';
+import { pager } from '../../utils/pager';
 
 const COLOR = { create: 'green', merge: 'blue', error: 'red' };
 
@@ -43,7 +44,7 @@ export default function ImportModal({ page, open, onClose, onDone }) {
           description={plan.summary.error ? 'Rows with errors are skipped on import.' : 'Nothing has been saved yet. Review and confirm.'} />
         <Radio.Group value={filter} onChange={(e) => setFilter(e.target.value)} optionType="button" style={{ marginBottom: 12 }}
           options={[{ value: 'all', label: `All (${plan.rows.length})` }, { value: 'create', label: `Create (${plan.summary.create})` }, { value: 'merge', label: `Merge (${plan.summary.merge})` }, { value: 'error', label: `Errors (${plan.summary.error})` }]} />
-        <Table size="small" rowKey="row" dataSource={rows} pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 'max-content' }}
+        <Table size="small" rowKey="row" dataSource={rows} pagination={pager(10, (rows)?.length ?? 0)} scroll={{ x: 'max-content' }}
           columns={[{ title: 'Row', dataIndex: 'row', width: 60 }, { title: 'Action', dataIndex: 'action', width: 90, render: (a) => <Tag color={COLOR[a]}>{a}</Tag> },
             { title: 'Name', render: (_, r) => r.preview?.name ?? '-' }, { title: 'IP', render: (_, r) => r.preview?.ip ?? '-' }, { title: 'MAC', render: (_, r) => <span className="mono">{r.preview?.mac ?? '-'}</span> },
             { title: 'Details', render: (_, r) => r.action === 'error' ? <span style={{ color: '#cf1322' }}>{r.errors.join('; ')}</span>

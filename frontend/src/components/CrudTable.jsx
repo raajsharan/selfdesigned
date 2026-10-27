@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import api, { errMsg } from '../api/client';
+import { pager } from '../utils/pager';
 
 /**
  * Generic list + add/edit modal for simple admin resources.
@@ -41,7 +42,7 @@ export default function CrudTable({ path, listPath, fields, columns, createLabel
   return (
     <>
       {canEdit && <div className="toolbar"><Button type="primary" icon={<PlusOutlined />} onClick={() => open(null)}>{createLabel}</Button></div>}
-      <Table rowKey={rowKey} size="small" loading={loading} dataSource={rows} columns={cols} pagination={{ pageSize: 20, hideOnSinglePage: true }} scroll={{ x: 'max-content' }} />
+      <Table rowKey={rowKey} size="small" loading={loading} dataSource={rows} columns={cols} pagination={pager(20, (rows)?.length ?? 0)} scroll={{ x: 'max-content' }} />
       <Modal open={!!editing} title={editing?.[rowKey] ? 'Edit' : createLabel} onCancel={() => setEditing(null)} onOk={save} okText="Save" destroyOnClose>
         <Form form={form} layout="vertical">
           {fields.map((f) => (

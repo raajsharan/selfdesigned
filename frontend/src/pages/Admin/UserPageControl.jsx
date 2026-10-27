@@ -3,6 +3,7 @@ import { App, Button, Checkbox, Modal, Select, Switch, Table, Tag } from 'antd';
 import api, { errMsg } from '../../api/client';
 import PageHeader from '../../components/PageHeader';
 import { ALL_ITEMS } from '../../nav';
+import { pager } from '../../utils/pager';
 
 /** Per-user overrides: tri-state per page (role default / forced on / forced off) + password visibility. */
 export default function UserPageControl() {
@@ -16,7 +17,7 @@ export default function UserPageControl() {
   return (
     <div className="page">
       <PageHeader title="User Page Control" sub="Grant or remove access to individual pages for one user, and decide who can reveal stored passwords." />
-      <Table rowKey="id" size="small" dataSource={d.users} pagination={{ pageSize: 25, hideOnSinglePage: true }}
+      <Table rowKey="id" size="small" dataSource={d.users} pagination={pager(25, (d.users)?.length ?? 0)}
         columns={[{ title: 'User', dataIndex: 'email' }, { title: 'Role', dataIndex: 'role', render: (v) => <Tag>{v}</Tag> }, { title: 'Can view passwords', dataIndex: 'can_view_passwords', render: (v) => (v ? 'Yes' : 'No') },
           { title: 'Overrides', render: (_, r) => Object.keys(r.page_overrides || {}).length || '-' }, { title: '', render: (_, r) => <Button size="small" onClick={() => open(r)}>Edit</Button> }]} />
       <Modal open={!!u} onCancel={() => setU(null)} onOk={save} okText="Save" title={`Page access: ${u?.email}`} width={620} destroyOnClose>
