@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Select, Tag } from 'antd';
+import { Progress, Select, Tag } from 'antd';
 import CrudTable from '../../components/CrudTable';
 import PageHeader from '../../components/PageHeader';
 
@@ -21,13 +21,25 @@ export function Dropdowns() {
   );
 }
 
+const fmt = (n) => Number(n || 0).toLocaleString();
+
 export function TagRanges() {
   return (
     <div className="page">
       <PageHeader title="Department Tag Ranges" sub="Give each department its own range of asset tags. A page enforces them when it has fields meaning “Department” and “Asset tag”." />
       <CrudTable path="/department-tag-ranges" createLabel="Add range" fields={[{ name: 'department', label: 'Department', required: true }, { name: 'prefix', label: 'Prefix', help: 'For example HYD-', default: '' },
-        { name: 'range_start', label: 'First number', type: 'number', required: true }, { name: 'range_end', label: 'Last number', type: 'number', required: true }, { name: 'pad', label: 'Digits (zero-padded)', type: 'number', default: 4 }]}
-        columns={[{ title: 'Department', dataIndex: 'department' }, { title: 'Range', render: (_, r) => <span className="mono">{r.prefix}{String(r.range_start).padStart(r.pad, '0')} to {r.prefix}{String(r.range_end).padStart(r.pad, '0')}</span> }]} />
+        { name: 'range_start', label: 'First number', type: 'number', required: true }, { name: 'range_end', label: 'Last number', type: 'number', required: true }, { name: 'pad', label: 'Digits (zero-padded)', type: 'number', default: 4 },
+        { name: 'sort_order', label: 'Sort', type: 'number', default: 0, help: 'Lower numbers are listed first' }, { name: 'is_active', label: 'Active', type: 'bool', default: true, help: 'Inactive ranges are not enforced on asset tags' }]}
+        columns={[
+          { title: 'Sort', dataIndex: 'sort_order', width: 70 },
+          { title: 'Department', dataIndex: 'department' },
+          { title: 'Range', render: (_, r) => <span className="chip blue">{r.prefix}{String(r.range_start).padStart(r.pad, '0')}-{String(r.range_end).padStart(r.pad, '0')}</span> },
+          { title: 'Total', dataIndex: 'total', render: (v) => <span className="num-lg">{fmt(v)}</span> },
+          { title: 'Used', dataIndex: 'used', render: (v) => <span className="chip red">{fmt(v)}</span> },
+          { title: 'Free', dataIndex: 'free', render: (v) => <span className="chip green">{fmt(v)}</span> },
+          { title: 'Utilization', dataIndex: 'utilization', width: 200, render: (v) => <div className="util"><Progress percent={v} showInfo={false} size="small" strokeColor={v >= 90 ? '#cf1322' : v >= 70 ? '#d46b08' : undefined} /><span>{v}%</span></div> },
+          { title: 'Active', dataIndex: 'is_active', render: (v) => <span className={`chip ${v ? 'green' : 'grey'}`}>{v ? 'Yes' : 'No'}</span> },
+        ]} />
     </div>
   );
 }

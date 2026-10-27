@@ -28,6 +28,8 @@ Nothing is pre-built. There are no fixed "Assets", "Servers" or "Beijing" screen
 | Reconcile and discovery drift; Tenable, Nessus and Endpoint Central matching | IP address, MAC address, Name, Hostname |
 | "All records" automatic column building | any meaning |
 
+**Department Tag Ranges** (Admin) lists each range with its Sort position, Total, Used (live tags on every page), Free, a utilisation bar and an Active switch; inactive ranges are not enforced on asset tags.
+
 Changing a field's meaning later re-maps existing records automatically. Field **keys** are fixed once saved (records already use them).
 
 ### Also included

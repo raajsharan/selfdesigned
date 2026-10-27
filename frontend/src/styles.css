@@ -125,3 +125,15 @@ body { -webkit-font-smoothing: antialiased; }
 .pill-field .ant-select .ant-select-selector { padding-left: 46px !important; align-items: center; }
 .pill-field .ant-select-single .ant-select-selector .ant-select-selection-search { inset-inline-start: 46px; }
 .pill-field .ant-select-multiple .ant-select-selector { padding-left: 46px; }
+
+/* ---- Status chips and utilisation bars (Department Tag Ranges) ---- */
+.chip { display: inline-block; padding: 1px 10px; border-radius: 6px; font-size: 12px; line-height: 20px; font-variant-numeric: tabular-nums; }
+.chip.blue { background: rgba(22, 119, 255, .14); color: #3c89ff; }
+.chip.red { background: rgba(207, 19, 34, .14); color: #e5484d; }
+.chip.green { background: rgba(82, 196, 26, .14); color: #3fa516; }
+.chip.grey { background: rgba(140, 140, 140, .18); color: var(--muted); }
+:root[data-theme='dark'] .chip.green { color: #6ccf3e; }
+.num-lg { font-size: 15px; font-variant-numeric: tabular-nums; }
+.util { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+.util .ant-progress { flex: 1; margin: 0; line-height: 1; }
+.util span { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; }

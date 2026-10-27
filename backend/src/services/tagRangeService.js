@@ -6,7 +6,7 @@ const format = (r, n) => `${r.prefix}${String(n).padStart(r.pad, '0')}`;
 
 async function getRange(department) {
   if (!department) return null;
-  const { rows } = await db.query('SELECT * FROM department_tag_ranges WHERE department = $1', [department]);
+  const { rows } = await db.query('SELECT * FROM department_tag_ranges WHERE department = $1 AND is_active', [department]);
   return rows[0] || null;
 }
 

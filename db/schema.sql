@@ -172,6 +172,8 @@ CREATE TABLE IF NOT EXISTS department_tag_ranges (
   pad         INT NOT NULL DEFAULT 4,
   CHECK (range_end >= range_start)
 );
+ALTER TABLE department_tag_ranges ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
+ALTER TABLE department_tag_ranges ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;   -- inactive ranges are not enforced
 
 CREATE TABLE IF NOT EXISTS backup_history (
   id         SERIAL PRIMARY KEY,

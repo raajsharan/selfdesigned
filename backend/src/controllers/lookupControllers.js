@@ -6,8 +6,18 @@ const teams = require('../services/teamsNotificationService');
 const { audit } = require('../services/auditService');
 const { bad } = require('../utils/httpError');
 
-exports.tagRanges = simpleCrud({ table: 'department_tag_ranges', entity: 'tag_range', cols: ['department', 'prefix', 'range_start', 'range_end', 'pad'],
-  orderBy: 'department', label: (r) => r.department });
+const tagRangeCrud = simpleCrud({ table: 'department_tag_ranges', entity: 'tag_range', cols: ['department', 'prefix', 'range_start', 'range_end', 'pad', 'sort_order', 'is_active'],
+  orderBy: 'sort_order, department', label: (r) => r.department });
+/** Each range with its size, how many of its tags are in use (live records on every page) and how full it is. */
+exports.tagRanges = { ...tagRangeCrud, list: async (req, res) => {
+  const ranges = (await db.query('SELECT * FROM department_tag_ranges ORDER BY sort_order, department')).rows;
+  const tags = (await db.query("SELECT asset_tag FROM inventory_records WHERE is_deleted = FALSE AND asset_tag IS NOT NULL AND asset_tag <> ''")).rows.map((r) => r.asset_tag);
+  res.json(ranges.map((r) => {
+    const total = r.range_end - r.range_start + 1;
+    const used = tags.filter((t) => { const rest = t.startsWith(r.prefix) ? t.slice(r.prefix.length) : ''; return /^\d+$/.test(rest) && +rest >= r.range_start && +rest <= r.range_end; }).length;
+    return { ...r, total, used, free: Math.max(0, total - used), utilization: total ? Math.min(100, Math.round((used / total) * 100)) : 0 };
+  }));
+} };
 const dropdownCrud = simpleCrud({ table: 'dropdown_values', entity: 'dropdown', cols: ['category', 'value', 'sort_order', 'parent_value'],
   orderBy: 'category, sort_order, value', label: (r) => `${r.category}: ${r.value}` });
 exports.dropdownCrud = dropdownCrud;
