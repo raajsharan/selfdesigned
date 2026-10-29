@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal, Tooltip } from 'antd';
-import { KeyOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
+import { CheckOutlined, DragOutlined, KeyOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
 import { usePages } from '../../context/PagesContext';
 import { iconFor } from '../pageIcons';
 import { useBranding } from '../../context/BrandingContext';
-import { orderedGroups, ALL_ITEMS } from '../../nav';
+import { orderedGroups, ALL_ITEMS, savedRank, saveOrder, resetOrder } from '../../nav';
 import api, { errMsg } from '../../api/client';
 
 const { Sider, Header, Content } = Layout;
@@ -56,23 +56,50 @@ export default function AppLayout() {
   const { pages: designed } = usePages();
   const nav = useNavigate(); const loc = useLocation();
   const [collapsed, setCollapsed] = useState(false); const [pw, setPw] = useState(false);
+  const [editing, setEditing] = useState(false); const [ver, setVer] = useState(0); const [drag, setDrag] = useState(null); const [over, setOver] = useState(null);
 
-  const groups = useMemo(() => orderedGroups(pages), [pages, loc.key]);   // re-read the saved order after Menu Order edits
+  const groups = useMemo(() => orderedGroups(pages), [pages, loc.key, ver]);   // re-read the saved order after Menu Order edits
+  const designedSorted = useMemo(() => { const rank = savedRank(); return [...designed].sort((a, b) => rank(`page:${a.slug}`) - rank(`page:${b.slug}`)); }, [designed, loc.key, ver]);
   const dynSelected = designed.find((p) => loc.pathname === `/p/${p.slug}` || loc.pathname.startsWith(`/p/${p.slug}/`));
   const selected = dynSelected ? null : ALL_ITEMS.filter((i) => (i.path === '/' ? loc.pathname === '/' : loc.pathname.startsWith(i.path))).sort((a, b) => b.path.length - a.path.length)[0];
 
   // Menu: the first static group, then the pages administrators designed, then everything else.
   const header = (label) => (collapsed ? { type: 'divider' } : { key: `g-${label}`, label: <span className="sider-group" style={{ padding: 0 }}>{label.toUpperCase()}</span>, disabled: true, style: { cursor: 'default', height: 28, lineHeight: '28px', marginTop: 8 } });
-  const staticGroup = (g) => [header(g.group), ...g.items.map((i) => ({ key: i.key, icon: <i.icon />, label: i.label }))];
-  const designedGroup = designed.length ? [header('Pages'), ...designed.map((p) => { const Icon = iconFor(p.icon); return { key: `page:${p.slug}`, icon: <Icon />, label: p.title }; })] : [];
-  const items = [...(groups[0] ? staticGroup(groups[0]) : []), ...designedGroup, ...groups.slice(1).flatMap(staticGroup)];
+  // Reordering happens inside a section; every section's items are saved together as one flat list.
+  const sections = [
+    ...(groups[0] ? [{ id: groups[0].group, items: groups[0].items.map((i) => ({ key: i.key, icon: <i.icon />, label: i.label })) }] : []),
+    ...(designedSorted.length ? [{ id: 'Pages', items: designedSorted.map((p) => { const Icon = iconFor(p.icon); return { key: `page:${p.slug}`, icon: <Icon />, label: p.title }; }) }] : []),
+    ...groups.slice(1).map((g) => ({ id: g.group, items: g.items.map((i) => ({ key: i.key, icon: <i.icon />, label: i.label })) })),
+  ];
+  const drop = (sid, to) => {
+    if (!drag || drag.sid !== sid || drag.key === to) return;
+    const next = sections.map((s) => {
+      if (s.id !== sid) return s;
+      const from = s.items.findIndex((x) => x.key === drag.key); const at = s.items.findIndex((x) => x.key === to);
+      const list = [...s.items]; const [moved] = list.splice(from, 1); list.splice(at, 0, moved); return { ...s, items: list };
+    });
+    saveOrder(next.flatMap((s) => s.items.map((i) => i.key))); setVer((v) => v + 1);
+  };
+  const entry = (s, i) => ({
+    key: i.key, icon: i.icon,
+    label: editing
+      ? <span className={`sider-drag ${over === i.key ? 'over' : ''}`} draggable onDragStart={() => setDrag({ sid: s.id, key: i.key })} onDragOver={(e) => { e.preventDefault(); setOver(i.key); }}
+        onDragEnd={() => { setDrag(null); setOver(null); }} onDrop={() => { drop(s.id, i.key); setDrag(null); setOver(null); }}>{i.label}</span>
+      : i.label,
+  });
+  const items = sections.flatMap((s) => [header(s.id === 'Pages' ? 'Pages' : s.id), ...s.items.map((i) => entry(s, i))]);
 
   return (
     <Layout style={{ minHeight: '100%' }}>
       <Sider width={248} collapsible collapsed={collapsed} trigger={null} breakpoint="lg" onBreakpoint={setCollapsed} style={{ overflow: 'auto', height: '100vh', position: 'sticky', top: 0 }}>
         <div className="sider-logo">{logo_data_url ? <img src={logo_data_url} alt="" /> : null}{!collapsed && <span>{app_name}</span>}</div>
         <Menu theme="dark" mode="inline" selectedKeys={dynSelected ? [`page:${dynSelected.slug}`] : selected ? [selected.key] : []} items={items}
-          onClick={({ key }) => { if (key.startsWith('page:')) return nav(`/p/${key.slice(5)}`); const t = ALL_ITEMS.find((i) => i.key === key); if (t) nav(t.path); }} />
+          onClick={({ key }) => { if (editing) return; if (key.startsWith('page:')) return nav(`/p/${key.slice(5)}`); const t = ALL_ITEMS.find((i) => i.key === key); if (t) nav(t.path); }} />
+        <div className="sider-edit">
+          <Tooltip title={editing ? 'Done' : 'Rearrange menu'} placement="right">
+            <Button type="text" size="small" icon={editing ? <CheckOutlined /> : <DragOutlined />} onClick={() => setEditing(!editing)}>{!collapsed && (editing ? 'Done' : 'Rearrange menu')}</Button></Tooltip>
+          {editing && !collapsed && <Button type="text" size="small" onClick={() => { resetOrder(); setVer((v) => v + 1); }}>Reset</Button>}
+        </div>
       </Sider>
       <Layout>
         <Header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 5 }}>
