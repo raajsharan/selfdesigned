@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal, Tooltip } from 'antd';
-import { KeyOutlined, LayoutOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
+import { CheckOutlined, DragOutlined, KeyOutlined, LayoutOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
 import { usePages } from '../../context/PagesContext';
 import { iconFor } from '../pageIcons';
 import { useBranding } from '../../context/BrandingContext';
-import { orderedGroups, ALL_ITEMS, savedRank } from '../../nav';
+import { orderedGroups, ALL_ITEMS, savedRank, saveOrder } from '../../nav';
 import api, { errMsg } from '../../api/client';
 
 const { Sider, Header, Content } = Layout;
@@ -56,10 +56,11 @@ export default function AppLayout() {
   const { pages: designed } = usePages();
   const nav = useNavigate(); const loc = useLocation();
   const [collapsed, setCollapsed] = useState(false); const [pw, setPw] = useState(false);
+  const [editing, setEditing] = useState(false); const [ver, setVer] = useState(0); const [drag, setDrag] = useState(null); const [over, setOver] = useState(null);
   const [openKeys, setOpenKeys] = useState([]);   // sections start closed; the one holding the current page opens with it
 
-  const groups = useMemo(() => orderedGroups(pages), [pages, loc.key]);   // re-read the saved order after Menu Order edits
-  const designedSorted = useMemo(() => { const rank = savedRank(); return [...designed].sort((a, b) => rank(`page:${a.slug}`) - rank(`page:${b.slug}`)); }, [designed, loc.key]);
+  const groups = useMemo(() => orderedGroups(pages), [pages, loc.key, ver]);   // re-read the saved order after Menu Order edits
+  const designedSorted = useMemo(() => { const rank = savedRank(); return [...designed].sort((a, b) => rank(`page:${a.slug}`) - rank(`page:${b.slug}`)); }, [designed, loc.key, ver]);
   const dynSelected = designed.find((p) => loc.pathname === `/p/${p.slug}` || loc.pathname.startsWith(`/p/${p.slug}/`));
   const selected = dynSelected ? null : ALL_ITEMS.filter((i) => (i.path === '/' ? loc.pathname === '/' : loc.pathname.startsWith(i.path))).sort((a, b) => b.path.length - a.path.length)[0];
 
@@ -71,7 +72,25 @@ export default function AppLayout() {
     ...groups.slice(1).map((g) => ({ id: g.group, icon: g.items[0].icon, items: g.items.map((i) => ({ key: i.key, icon: <i.icon />, label: i.label })) })),
   ];
   const selKey = dynSelected ? `page:${dynSelected.slug}` : selected?.key;
-  const items = sections.map((s) => ({ key: `g-${s.id}`, icon: <s.icon />, label: s.id, children: s.items }));
+  // Administration > "Rearrange menu" switches the sidebar into drag mode: every section opens and items can be dragged within their section.
+  const REARRANGE = 'admin-nav-order';
+  const drop = (sid, to) => {
+    if (!drag || drag.sid !== sid || drag.key === to) return;
+    const next = sections.map((s) => {
+      if (s.id !== sid) return s;
+      const list = s.items.filter((x) => x.key !== REARRANGE); const from = list.findIndex((x) => x.key === drag.key); const at = list.findIndex((x) => x.key === to);
+      const [moved] = list.splice(from, 1); list.splice(at, 0, moved); return { ...s, items: s.items.some((x) => x.key === REARRANGE) ? [...list, s.items.find((x) => x.key === REARRANGE)] : list };
+    });
+    saveOrder(next.flatMap((s) => s.items.map((i) => i.key))); setVer((v) => v + 1);
+  };
+  const entry = (s, i) => {
+    if (i.key === REARRANGE) return { key: i.key, icon: editing ? <CheckOutlined /> : <DragOutlined />, label: editing ? 'Done rearranging' : 'Rearrange menu' };
+    return { key: i.key, icon: i.icon, label: editing
+      ? <span className={`sider-drag ${over === i.key ? 'over' : ''}`} draggable onDragStart={() => setDrag({ sid: s.id, key: i.key })} onDragOver={(e) => { e.preventDefault(); setOver(i.key); }}
+        onDragEnd={() => { setDrag(null); setOver(null); }} onDrop={() => { drop(s.id, i.key); setDrag(null); setOver(null); }}>{i.label}</span>
+      : i.label };
+  };
+  const items = sections.map((s) => ({ key: `g-${s.id}`, icon: <s.icon />, label: s.id, children: s.items.map((i) => entry(s, i)) }));
   const activeId = sections.find((s) => s.items.some((i) => i.key === selKey))?.id;
   useEffect(() => { if (activeId) setOpenKeys((k) => (k.includes(`g-${activeId}`) ? k : [...k, `g-${activeId}`])); }, [activeId]);   // landing on a page opens its section
 
@@ -80,8 +99,8 @@ export default function AppLayout() {
       <Sider width={248} collapsible collapsed={collapsed} trigger={null} breakpoint="lg" onBreakpoint={setCollapsed} style={{ overflow: 'auto', height: '100vh', position: 'sticky', top: 0 }}>
         <div className="sider-logo">{logo_data_url ? <img src={logo_data_url} alt="" /> : null}{!collapsed && <span>{app_name}</span>}</div>
         <Menu theme="dark" mode="inline" selectedKeys={selKey ? [selKey] : []} items={items}
-          openKeys={collapsed ? [] : openKeys} onOpenChange={setOpenKeys}
-          onClick={({ key }) => { if (key.startsWith('page:')) return nav(`/p/${key.slice(5)}`); const t = ALL_ITEMS.find((i) => i.key === key); if (t) nav(t.path); }} />
+          openKeys={collapsed ? [] : editing ? sections.map((x) => `g-${x.id}`) : openKeys} onOpenChange={setOpenKeys}
+          onClick={({ key }) => { if (key === 'admin-nav-order') return setEditing(!editing); if (editing) return; if (key.startsWith('page:')) return nav(`/p/${key.slice(5)}`); const t = ALL_ITEMS.find((i) => i.key === key); if (t) nav(t.path); }} />
       </Sider>
       <Layout>
         <Header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 5 }}>
