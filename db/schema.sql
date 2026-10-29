@@ -267,3 +267,14 @@ ALTER TABLE decommission_log ALTER COLUMN source TYPE VARCHAR(48);
 ALTER TABLE nessus_status    ALTER COLUMN source TYPE VARCHAR(48);
 -- A failed SSH check (unreachable, bad credentials, install error) is kept apart from 'not installed'.
 ALTER TABLE nessus_status ADD COLUMN IF NOT EXISTS check_error TEXT;
+
+-- Result of our own ManageEngine agent checks / installs, kept next to what Endpoint Central reports.
+CREATE TABLE IF NOT EXISTS me_agent_status (
+  id              SERIAL PRIMARY KEY,
+  source          VARCHAR(48) NOT NULL,
+  asset_id        BIGINT NOT NULL,
+  installed       BOOLEAN NOT NULL DEFAULT FALSE,
+  last_checked_at TIMESTAMPTZ,
+  check_error     TEXT,
+  UNIQUE (source, asset_id)
+);

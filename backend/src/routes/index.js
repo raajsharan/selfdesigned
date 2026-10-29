@@ -13,6 +13,7 @@ const rep = require('../controllers/reportControllers');
 const ec = require('../controllers/endpointCentralController');
 const tenable = require('../controllers/tenableController');
 const nessus = require('../controllers/nessusController');
+const meDeploy = require('../controllers/meDeployController');
 const backup = require('../controllers/backupController');
 
 const api = express.Router();
@@ -92,10 +93,17 @@ api.get('/nessus-status/config', ...nessusPage, adminOnly, h(nessus.getConfig));
 api.put('/nessus-status/config', ...nessusPage, adminOnly, h(nessus.putConfig));
 const nessusItems = [body('items').isArray({ min: 1, max: 200 }), body('items.*.source').isString(), body('items.*.id').isInt({ min: 1 })];
 api.post('/nessus-status/preview', ...nessusPage, adminOnly, ...nessusItems, validate, h(nessus.preview));
-api.post('/nessus-status/jobs', ...nessusPage, adminOnly, ...nessusItems, body('mode').isIn(['verify', 'install']), body('windows_dest_dir').optional({ values: 'falsy' }).isString().isLength({ max: 200 }), validate, h(nessus.startJob));
+api.post('/nessus-status/jobs', ...nessusPage, adminOnly, ...nessusItems, body('mode').isIn(['verify', 'install']), body('options').optional().isObject(), validate, h(nessus.startJob));
 api.get('/nessus-status/jobs/:jobId', ...nessusPage, adminOnly, h(nessus.getJob));
 api.get('/nessus-status/jobs/:jobId/log', ...nessusPage, adminOnly, h(nessus.jobLog));
 api.put('/nessus-status/:source/:id', ...nessusPage, intId, body('installed').isBoolean(), validate, h(nessus.setStatus));
+const mePage = [auth, requirePageAccess('software-status')];
+api.get('/software-status/config', ...mePage, adminOnly, h(meDeploy.getConfig));
+api.put('/software-status/config', ...mePage, adminOnly, h(meDeploy.putConfig));
+api.post('/software-status/preview', ...mePage, adminOnly, ...nessusItems, validate, h(meDeploy.preview));
+api.post('/software-status/jobs', ...mePage, adminOnly, ...nessusItems, body('mode').isIn(['verify', 'install']), body('options').optional().isObject(), validate, h(meDeploy.startJob));
+api.get('/software-status/jobs/:jobId', ...mePage, adminOnly, h(meDeploy.getJob));
+api.get('/software-status/jobs/:jobId/log', ...mePage, adminOnly, h(meDeploy.jobLog));
 
 // ---- Backup & restore
 const bk = [auth, requirePageAccess('admin-backup'), adminOnly];

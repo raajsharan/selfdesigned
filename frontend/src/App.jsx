@@ -18,7 +18,7 @@ import ProxmoxDiscovery from './pages/ProxmoxDiscovery';
 import TenableReport from './pages/TenableReport';
 import NessusStatus from './pages/NessusStatus';
 import EndpointCentral from './pages/EndpointCentral';
-import SoftwareStatus from './pages/SoftwareStatus';
+import MEStatus from './pages/MEStatus';
 import WeeklyReport from './pages/WeeklyReport';
 import DataHealth from './pages/Admin/DataHealth';
 import Reconcile from './pages/Reconcile';
@@ -45,7 +45,7 @@ const ROUTES = {
   dashboard: <Dashboard />,
   decommissioned: <Decommissioned />, 'recycle-bin': <RecycleBin />, search: <GlobalSearch />, migration: <MigrationTracker />,
   vmware: <VMwareDiscovery />, proxmox: <ProxmoxDiscovery />, tenable: <TenableReport />, 'nessus-status': <NessusStatus />,
-  'endpoint-central': <EndpointCentral />, 'software-status': <SoftwareStatus />, 'weekly-report': <WeeklyReport />,
+  'endpoint-central': <EndpointCentral />, 'software-status': <MEStatus />, 'weekly-report': <WeeklyReport />,
   'data-health': <DataHealth />, reconcile: <Reconcile />, 'admin-users': <Users />, 'admin-roles': <Roles />,
   'admin-user-page-control': <UserPageControl />, 'admin-pages': <PagesAdmin />, 'admin-dropdowns': <Dropdowns />,
   'admin-tag-ranges': <TagRanges />, 'admin-compliance': <ComplianceConfig />,

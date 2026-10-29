@@ -5,7 +5,7 @@ import {
   LoadingOutlined, LockOutlined, MinusCircleOutlined, PlayCircleOutlined, CloseCircleFilled,
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
-import api, { errMsg } from '../../api/client';
+import api, { errMsg } from '../api/client';
 
 const PILL = {
   queued: { label: 'Queued', cls: 'idle', icon: <ClockCircleOutlined /> },
@@ -16,6 +16,8 @@ const PILL = {
   failed: { label: 'Failed', cls: 'warn', icon: <ExclamationCircleFilled style={{ fontSize: 11 }} /> },
   skipped: { label: 'Skipped', cls: 'idle', icon: <MinusCircleOutlined /> },
 };
+// Service state reported by the playbook -> pill.
+const SVC = { running: { label: 'Running', cls: 'ok' }, failed: { label: 'Failed', cls: 'bad' }, stopped: { label: 'Stopped', cls: 'warn' }, notfound: { label: 'Not Found', cls: 'idle' }, other: { cls: 'warn' } };
 const recordLink = (r) => `/p/${r.source}?record=${r.id}`;
 const byLocation = (list) => {
   const m = new Map(); list.forEach((r) => m.set(r.location, [...(m.get(r.location) || []), r]));
@@ -24,9 +26,9 @@ const byLocation = (list) => {
 const Loc = ({ name }) => <div className="nw-loc"><EnvironmentOutlined /> {name}</div>;
 
 /** Two steps in one dialog: 1. check the targets and the login each will use, 2. watch the Ansible run. */
-export default function InstallWizard({ job, onClose, onFinished }) {
+export default function InstallWizard({ base, agentName = 'agent', job, onClose, onFinished }) {
   const { message } = App.useApp();
-  const [mode, setMode] = useState('verify'); const [targets, setTargets] = useState(null); const [win, setWin] = useState({ has: false, dir: '' });
+  const [mode, setMode] = useState('verify'); const [targets, setTargets] = useState(null); const [inputs, setInputs] = useState([]); const [opts, setOpts] = useState({});
   const [run, setRun] = useState(null); const [starting, setStarting] = useState(false); const [now, setNow] = useState(Date.now());
   const timer = useRef(null);
   const items = job?.items;
@@ -34,30 +36,31 @@ export default function InstallWizard({ job, onClose, onFinished }) {
   useEffect(() => {
     if (!items) return undefined;
     setMode(job.mode); setTargets(null); setRun(null);
-    api.post('/nessus-status/preview', { items: items.map((r) => ({ source: r.source, id: r.id })) }).then((r) => { setTargets(r.data.targets); setWin({ has: r.data.has_windows, dir: r.data.windows_dest_dir || '' }); }).catch((e) => { message.error(errMsg(e)); onClose(); });
+    api.post(`${base}/preview`, { items: items.map((r) => ({ source: r.source, id: r.id })) }).then((r) => { setTargets(r.data.targets); setInputs(r.data.inputs); setOpts(Object.fromEntries(r.data.inputs.map((i) => [i.key, i.value]))); }).catch((e) => { message.error(errMsg(e)); onClose(); });
     return () => clearInterval(timer.current);
   }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runnable = (targets || []).filter((t) => t.can_run); const skipped = (targets || []).length - runnable.length;
+  const blocked = (t) => mode === 'install' && !!t.install_block;
+  const runnable = (targets || []).filter((t) => t.can_run && !blocked(t)); const skipped = (targets || []).length - runnable.length;
   const running = run?.status === 'running';
 
   const poll = (id) => {
     clearInterval(timer.current);
     timer.current = setInterval(async () => {
       setNow(Date.now());
-      try { const r = (await api.get(`/nessus-status/jobs/${id}`)).data; setRun(r); if (r.status === 'done') { clearInterval(timer.current); onFinished(); } }
+      try { const r = (await api.get(`${base}/jobs/${id}`)).data; setRun(r); if (r.status === 'done') { clearInterval(timer.current); onFinished(); } }
       catch (e) { clearInterval(timer.current); message.error(errMsg(e)); }
     }, 2000);
   };
   const start = async (list, m) => {
     setStarting(true);
-    try { const r = (await api.post('/nessus-status/jobs', { items: list.map((t) => ({ source: t.source, id: t.id })), mode: m, windows_dest_dir: win.dir })).data; setRun(r); setMode(m); poll(r.id); }
+    try { const r = (await api.post(`${base}/jobs`, { items: list.map((t) => ({ source: t.source, id: t.id })), mode: m, options: opts })).data; setRun(r); setMode(m); poll(r.id); }
     catch (e) { message.error(errMsg(e)); } finally { setStarting(false); }
   };
   const download = async () => {
     try {
-      const r = await api.get(`/nessus-status/jobs/${run.id}/log`, { responseType: 'blob' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(r.data); a.download = `nessus-${run.mode}.log`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      const r = await api.get(`${base}/jobs/${run.id}/log`, { responseType: 'blob' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(r.data); a.download = `${agentName}-${run.mode}.log`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     } catch (e) { message.error(errMsg(e)); }
   };
   const failedItems = (run?.items || []).filter((i) => ['login_failed', 'failed'].includes(i.state));
@@ -71,17 +74,19 @@ export default function InstallWizard({ job, onClose, onFinished }) {
         <div className="nw-seg">
           {[['verify', 'Verify only'], ['install', 'Install, then verify']].map(([k, l]) => <button key={k} type="button" className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}
         </div>
-        {mode === 'install' && win.has && <div style={{ marginTop: 14 }}>
-          <div className="nw-h">Windows destination folder</div>
-          <Input value={win.dir} onChange={(e) => setWin((w) => ({ ...w, dir: e.target.value }))} placeholder="C:\Temp\NessusAgent" />
-          <div className="nw-dim small" style={{ marginTop: 4 }}>The installer is copied from the shared path on the server into this folder (created if missing), then installed from there. The file is left in place.</div></div>}
+        {mode === 'install' && inputs.map((i) => <div key={i.key} style={{ marginTop: 14 }}>
+          <div className="nw-h">{i.label}</div>
+          <Input value={opts[i.key] || ''} onChange={(e) => setOpts((o) => ({ ...o, [i.key]: e.target.value }))} />
+          <div className="nw-dim small" style={{ marginTop: 4 }}>{i.hint}</div></div>)}
         <div className="nw-h" style={{ marginTop: 18 }}>Targets and the login each will use</div>
         {!targets ? <div className="nw-dim"><LoadingOutlined /> Reading the saved logins…</div> : byLocation(targets).map(([loc, list]) => (
           <div key={loc}><Loc name={loc} />
             {list.map((t) => (
               <div className="nw-row" key={`${t.source}-${t.id}`}>
-                <div><b>{t.name}</b> <span className="nw-dim">{t.os_type}</span>{!t.can_run && <div className="nw-dim small">Will be skipped</div>}</div>
-                {t.can_run
+                <div><b>{t.name}</b> <span className="nw-dim">{t.os_type}</span>{(!t.can_run || blocked(t)) && <div className="nw-dim small">Will be skipped</div>}</div>
+                {t.can_run && blocked(t)
+                  ? <span className="nw-skip"><span className="nx-pill warn"><ExclamationCircleFilled style={{ fontSize: 11 }} />No installer set</span><span className="nw-dim small">{t.install_block}</span></span>
+                  : t.can_run
                   ? <span className="nw-login"><KeyOutlined /> <code>{t.username}</code> · password saved</span>
                   : <span className="nw-skip"><span className="nx-pill warn"><ExclamationCircleFilled style={{ fontSize: 11 }} />{t.reason === 'no_username' ? 'No username saved' : 'No password saved'}</span>
                     <Link to={recordLink(t)} target="_blank">Open record <ExportOutlined /></Link></span>}
@@ -91,7 +96,7 @@ export default function InstallWizard({ job, onClose, onFinished }) {
       </div>
       <div className="nw-foot"><span className="nw-dim">{runnable.length} will run · {skipped} skipped</span>
         <span className="nw-btns"><Button onClick={onClose}>Cancel</Button>
-          <Button type="primary" icon={<PlayCircleOutlined />} disabled={!runnable.length || (mode === 'install' && win.has && !win.dir.trim())} loading={starting} onClick={() => start(runnable, mode)}>Start ({runnable.length} asset{runnable.length === 1 ? '' : 's'})</Button></span></div>
+          <Button type="primary" icon={<PlayCircleOutlined />} disabled={!runnable.length || (mode === 'install' && inputs.some((i) => !String(opts[i.key] || '').trim()))} loading={starting} onClick={() => start(runnable, mode)}>Start ({runnable.length} asset{runnable.length === 1 ? '' : 's'})</Button></span></div>
     </>);
 
   const total = run ? run.total - run.skipped : 0;
@@ -104,7 +109,14 @@ export default function InstallWizard({ job, onClose, onFinished }) {
             {list.map((i) => { const p = PILL[i.state]; return (
               <div className="nw-res" key={`${i.source}-${i.id}`}>
                 <span className={`nx-pill ${p.cls}`}>{p.icon}{i.state === 'running' ? (run.mode === 'install' ? 'Installing' : 'Verifying') : p.label}</span>
-                <div className="nw-msg"><b>{i.name}</b><div className="nw-dim">{i.message}</div></div>
+                <div className="nw-msg"><b>{i.name}</b><div className="nw-dim">{i.message}</div>
+                  {i.detail && <div className="nw-chk">
+                    <div className="nw-card"><div className="nw-card-h">Service</div>
+                      <span className={`nx-pill ${(SVC[i.detail.service.state] || SVC.other).cls}`}>{(SVC[i.detail.service.state] || { label: i.detail.service.state }).label}</span>
+                      <div className="nw-path">{i.detail.service.name}</div></div>
+                    <div className="nw-card"><div className="nw-card-h">Binary</div>
+                      <span className={`nx-pill ${i.detail.binary.found ? 'ok' : 'idle'}`}>{i.detail.binary.found ? 'Found' : 'Not Found'}</span>
+                      <div className="nw-path">{i.detail.binary.path}</div></div></div>}</div>
                 <div className="nw-side">{i.started_at && <span className="nw-dim small">{secs(i)} s</span>}
                   {['login_failed', 'failed', 'skipped'].includes(i.state) && <Link to={recordLink(i)} target="_blank"><Button size="small" icon={<ExportOutlined />}>Open record</Button></Link>}</div>
               </div>); })}

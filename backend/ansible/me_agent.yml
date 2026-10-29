@@ -1,0 +1,115 @@
+# ManageEngine (UEMS / Endpoint Central) agent deployment for one asset. Driven by backend/src/services/meAnsibleService.js,
+# which writes the inventory (a single host named "target") and the extra-vars file.
+#
+#   me_mode = verify   only checks the agent
+#   me_mode = install  when the agent binary is missing: create the destination folder, copy the setup files from the shared
+#                      path on this (Linux) server into it, then run the installer from there; finally verifies
+#
+# Verification looks at two things on both OSes: the agent binary and the agent service.
+#   Linux    binary  me_linux_binary   (/usr/local/manageengine/uems_agent/bin/dcservice)    service  me_linux_service   (dcservice.service)
+#   Windows  binary  me_windows_binary (C:\Program Files (x86)\ManageEngine\UEMS_Agent\bin\dcagentservice.exe)
+#                                                                                             service  me_windows_service ("ManageEngine UEMS - Agent")
+# Linux needs two setup files (UEMS_LinuxAgent.bin + serverinfo.json); Windows one (<Location>_Agent.exe). Both OSes are reached
+# over SSH (Windows through OpenSSH Server). The last task prints
+#   ME_RESULT|<present|missing>||binary=<found|notfound>;service=<running|stopped|failed|notfound|...>
+# where "present" means the binary was found.
+
+- name: ManageEngine agent on Linux
+  hosts: linux
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Look for the agent binary
+      ansible.builtin.stat:
+        path: "{{ me_linux_binary }}"
+      register: bin_before
+
+    - name: Copy the setup files and install
+      when: me_mode == 'install' and not bin_before.stat.exists
+      block:
+        - name: Create the destination folder
+          ansible.builtin.file:
+            path: "{{ me_linux_dest_dir }}"
+            state: directory
+            mode: "0755"
+        - name: Copy the setup files from the shared path on the server
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: "{{ me_linux_dest_dir }}/{{ item | basename }}"
+            mode: "{{ '0755' if item is match('.*[.]bin$') else '0644' }}"
+          loop: "{{ me_linux_files }}"
+        - name: Run the installer from the destination folder
+          ansible.builtin.command:
+            cmd: "{{ me_linux_dest_dir }}/{{ me_linux_files | select('match', '.*[.]bin$') | first | basename }} {{ me_linux_install_args }}"
+            chdir: "{{ me_linux_dest_dir }}"
+          changed_when: true
+
+    - name: Look for the agent binary again
+      ansible.builtin.stat:
+        path: "{{ me_linux_binary }}"
+      register: bin_after
+
+    - name: Read the agent service
+      ansible.builtin.command: "systemctl show {{ me_linux_service }} -p LoadState -p ActiveState"
+      register: svc
+      changed_when: false
+      failed_when: false
+
+    - name: Report
+      vars:
+        load_state: "{{ (svc.stdout | regex_search('LoadState=([a-z-]+)', '\\1') | default(['not-found'], true)) | first }}"
+        active_state: "{{ (svc.stdout | regex_search('ActiveState=([a-z-]+)', '\\1') | default(['inactive'], true)) | first }}"
+        svc_state: "{{ 'notfound' if load_state == 'not-found' else ('running' if active_state == 'active' else ('stopped' if active_state == 'inactive' else active_state)) }}"
+      ansible.builtin.debug:
+        msg: "ME_RESULT|{{ 'present' if bin_after.stat.exists else 'missing' }}||binary={{ 'found' if bin_after.stat.exists else 'notfound' }};service={{ svc_state }}"
+
+# Windows is reached over SSH (OpenSSH Server, PowerShell shell), not WinRM.
+- name: ManageEngine agent on Windows
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Look for the agent binary
+      ansible.windows.win_stat:
+        path: "{{ me_windows_binary }}"
+      register: bin_before
+
+    - name: Copy the setup file and install
+      when: me_mode == 'install' and not bin_before.stat.exists
+      block:
+        - name: Create the destination folder
+          ansible.windows.win_file:
+            path: "{{ me_windows_dest_dir }}"
+            state: directory
+        - name: Copy the setup file from the shared path on the server
+          ansible.windows.win_copy:
+            src: "{{ me_windows_file }}"
+            dest: "{{ me_windows_dest_dir }}\\{{ me_windows_file | basename }}"
+        - name: Run the installer from the destination folder
+          ansible.windows.win_command:
+            cmd: "\"{{ me_windows_dest_dir }}\\{{ me_windows_file | basename }}\" {{ me_windows_install_args }}"
+            chdir: "{{ me_windows_dest_dir }}"
+        - name: Wait for the agent binary to appear
+          ansible.windows.win_stat:
+            path: "{{ me_windows_binary }}"
+          register: bin_wait
+          until: bin_wait.stat.exists
+          retries: 30
+          delay: 10
+
+    - name: Look for the agent binary again
+      ansible.windows.win_stat:
+        path: "{{ me_windows_binary }}"
+      register: bin_after
+
+    - name: Read the agent service
+      ansible.windows.win_shell: |
+        $n = '{{ me_windows_service }}'
+        $s = Get-Service | Where-Object { $_.Name -eq $n -or $_.DisplayName -eq $n } | Select-Object -First 1
+        if ($s) { $s.Status.ToString().ToLower() } else { 'notfound' }
+      register: svc
+      changed_when: false
+      failed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "ME_RESULT|{{ 'present' if bin_after.stat.exists else 'missing' }}||binary={{ 'found' if bin_after.stat.exists else 'notfound' }};service={{ (svc.stdout | default('notfound')) | trim }}"

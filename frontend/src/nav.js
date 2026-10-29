@@ -22,7 +22,7 @@ export const NAV = [
     { key: 'tenable', label: 'Tenable Report', path: '/tenable', icon: SafetyCertificateOutlined },
     { key: 'nessus-status', label: 'Nessus Agent Status', path: '/nessus-status', icon: ToolOutlined },
     { key: 'endpoint-central', label: 'Endpoint Central', path: '/endpoint-central', icon: AppstoreOutlined },
-    { key: 'software-status', label: 'Software Status', path: '/software-status', icon: ApiOutlined },
+    { key: 'software-status', label: 'ME Status', path: '/software-status', icon: ApiOutlined },
   ] },
   { group: 'Reports', items: [
     { key: 'weekly-report', label: 'Weekly Report', path: '/weekly-report', icon: BarChartOutlined },
