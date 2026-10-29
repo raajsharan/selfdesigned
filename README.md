@@ -40,7 +40,7 @@ Changing a field's meaning later re-maps existing records automatically. Field *
 * **Decommission lifecycle**: immutable log (a database trigger blocks edits and deletes), reactivation refused if the tag or IP was reused meanwhile
 * **Migration tracker**: projects start with **no predefined tabs** (add your own, including custom ones), typed custom fields, inline editing, column show/hide and reorder, summary cards, overview, multi-sheet Excel import, sync from VMware discovery
 * **Discovery**: vSphere (REST) and Proxmox VE (API token): VM list, dashboard, drift, topology, stale VMs, MAC lookup, scheduled runs, one-click add to **any records page you choose**
-* **Integrations**: Tenable report, Nessus agent status with SSH install, ManageEngine Endpoint Central (API key or credentials + TOTP), Teams Adaptive Card notifications
+* **Integrations**: Tenable report, Nessus agent status with Ansible install (over SSH for Linux and Windows), ManageEngine Endpoint Central (API key or credentials + TOTP), Teams Adaptive Card notifications
 * **Administration**: roles and custom roles, per-user page overrides, dropdowns, tag ranges, compliance config, branding, audit log, backup/restore, Swagger at `/api/docs`
 
 ### Sign-in, lock screen and profile
@@ -123,7 +123,7 @@ Per-user overrides (User Page Control) can force a page on or off and grant `can
 * Asset, iDRAC, Endpoint Central, Nessus key and Teams webhook secrets are AES-256-GCM encrypted at rest and never returned by the API; reveal endpoints are audited and gated by `can_view_passwords`
 * Helmet + CSP, explicit CORS allow-list, parameterised SQL everywhere, express-validator on routes, upload extension + MIME allow-list and size limits, generic 500s in production
 * Branding logos accept PNG/JPEG/WebP only (SVG can carry script)
-* Nessus SSH install uses trust-on-first-use host-key pinning and builds commands only from validated config values; SSH credentials are used once and not stored
+* Nessus install runs `backend/ansible/nessus_agent.yml` with the login saved on each asset's own record (nobody types a password). The password is decrypted server-side for the run, passed in a 0600 temp vars file that is deleted afterwards, scrubbed from logs, and every use is audited. Linux SSH host keys are pinned on first use (`var/nessus_known_hosts`); settings are validated before they reach Ansible
 * `pg_dump` receives the DB password through its environment, not the command line
 * CSV backups exclude password / token / hash columns; use the database dump for a complete restore
 
@@ -147,7 +147,7 @@ These were verified by running the code against PostgreSQL and a real browser, b
 * **Endpoint Central**: endpoint paths and field names follow the public v1.4 REST API but vary between builds, and the credential/TOTP handshake is implemented from the documented flow. Expect to adjust `backend/src/services/endpointCentralService.js` once you test against your server.
 * **Proxmox**: written against the documented `/api2/json` endpoints with API-token auth; guest IPs need the QEMU guest agent.
 * **Teams**: sends Adaptive Cards in the Workflows-webhook format; verified that a dead webhook never slows or breaks the triggering request, not against a real channel.
-* **Nessus install** over SSH is untested against a real host. Configure package URLs and the linking key under Nessus Agent Status → Install settings.
+* **Nessus install** is untested against real hosts. The backend server needs `ansible-playbook` (ansible-core with the `ansible.windows` collection), `sshpass` for password logins (set `ANSIBLE_PLAYBOOK` if `ansible-playbook` is not on PATH). Windows targets are reached over SSH, not WinRM: they need the *OpenSSH Server* feature running on port 22 with password login allowed for an administrator account; the Windows MSI is not downloaded but copied from a shared path on the backend server (Install settings → *Windows MSI path*) into a destination folder that is created on the box, and installed from there. Under Nessus Agent Status → Install settings set the package URLs, manager, linking key, and which record fields hold the login (defaults: `ssh_username` / `ssh_password`). Jobs are held in memory, so run a single backend instance.
 * Scheduled discovery/backup run in-process (checked every minute). Run a single backend instance, or move them to cron if you scale out.
 * Menu order and migration column preferences are stored per browser (`localStorage`), by design.
 

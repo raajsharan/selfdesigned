@@ -90,8 +90,12 @@ const nessusPage = [auth, requirePageAccess('nessus-status')];
 api.get('/nessus-status', ...nessusPage, h(nessus.list));
 api.get('/nessus-status/config', ...nessusPage, adminOnly, h(nessus.getConfig));
 api.put('/nessus-status/config', ...nessusPage, adminOnly, h(nessus.putConfig));
+const nessusItems = [body('items').isArray({ min: 1, max: 200 }), body('items.*.source').isString(), body('items.*.id').isInt({ min: 1 })];
+api.post('/nessus-status/preview', ...nessusPage, adminOnly, ...nessusItems, validate, h(nessus.preview));
+api.post('/nessus-status/jobs', ...nessusPage, adminOnly, ...nessusItems, body('mode').isIn(['verify', 'install']), body('windows_dest_dir').optional({ values: 'falsy' }).isString().isLength({ max: 200 }), validate, h(nessus.startJob));
+api.get('/nessus-status/jobs/:jobId', ...nessusPage, adminOnly, h(nessus.getJob));
+api.get('/nessus-status/jobs/:jobId/log', ...nessusPage, adminOnly, h(nessus.jobLog));
 api.put('/nessus-status/:source/:id', ...nessusPage, intId, body('installed').isBoolean(), validate, h(nessus.setStatus));
-api.post('/nessus-status/:source/:id/install', ...nessusPage, adminOnly, intId, body('ssh_username').isString().trim().notEmpty(), body('ssh_password').isString().notEmpty(), body('os').optional().isIn(['linux', 'windows']), validate, h(nessus.install));
 
 // ---- Backup & restore
 const bk = [auth, requirePageAccess('admin-backup'), adminOnly];

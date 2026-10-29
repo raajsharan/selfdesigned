@@ -1,0 +1,123 @@
+# Nessus Agent deployment for one asset. Driven by backend/src/services/nessusAnsibleService.js, which writes the
+# inventory (a single host named "target") and the extra-vars file (connection details, package URLs, linking key).
+#
+#   nessus_mode = verify   only reports whether the agent is present and its version
+#   nessus_mode = install  installs and links the agent when it is missing, then verifies.
+#                          Linux downloads the package; Windows copies the MSI from a shared path on this (Linux) server
+#                          into a destination folder it creates on the box, then installs from there.
+#
+# The last task prints one line, "NESSUS_RESULT|<present|missing>|<version>", which the backend reads.
+
+- name: Nessus Agent on Linux
+  hosts: linux
+  gather_facts: true
+  become: true
+  vars:
+    nessus_cli: /opt/nessus_agent/sbin/nessuscli
+    pkg_path: /tmp/nessus_agent_package
+  tasks:
+    - name: Look for an installed agent
+      ansible.builtin.command: "{{ nessus_cli }} -v"
+      register: agent_before
+      changed_when: false
+      failed_when: false
+
+    - name: Install and link the agent
+      when: nessus_mode == 'install' and agent_before.rc != 0
+      block:
+        - name: Download the package
+          ansible.builtin.get_url:
+            url: "{{ nessus_linux_package_url }}"
+            dest: "{{ pkg_path }}"
+            mode: "0600"
+        - name: Install the .deb package
+          ansible.builtin.apt:
+            deb: "{{ pkg_path }}"
+          when: ansible_os_family == 'Debian'
+        - name: Install the .rpm package
+          ansible.builtin.dnf:
+            name: "{{ pkg_path }}"
+            state: present
+            disable_gpg_check: true
+          when: ansible_os_family != 'Debian'
+        - name: Link the agent to the manager
+          ansible.builtin.command:
+            argv: "{{ [nessus_cli, 'agent', 'link', '--key=' ~ nessus_linking_key, '--host=' ~ nessus_manager_host, '--port=' ~ nessus_manager_port] + (['--groups=' ~ nessus_groups] if nessus_groups else []) }}"
+          no_log: true
+        - name: Enable and start the agent service
+          ansible.builtin.systemd:
+            name: nessusagent
+            enabled: true
+            state: started
+      always:
+        - name: Remove the downloaded package
+          ansible.builtin.file:
+            path: "{{ pkg_path }}"
+            state: absent
+
+    - name: Check the agent again
+      ansible.builtin.command: "{{ nessus_cli }} -v"
+      register: agent_after
+      changed_when: false
+      failed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "NESSUS_RESULT|{{ 'present' if agent_after.rc == 0 and (agent_after.stdout | regex_search('[0-9]+[.][0-9]+[.][0-9]+')) else 'missing' }}|{{ (agent_after.stdout | default('')) | regex_search('[0-9]+[.][0-9]+[.][0-9]+') | default('', true) }}"
+
+# Windows is reached over SSH (OpenSSH Server, PowerShell shell), not WinRM.
+- name: Nessus Agent on Windows
+  hosts: windows
+  gather_facts: false
+  vars:
+    nessus_cli: 'C:\Program Files\Tenable\Nessus Agent\nessuscli.exe'
+    msi_path: "{{ nessus_windows_dest_dir }}\\{{ nessus_windows_msi_src | basename }}"
+  tasks:
+    - name: Look for an installed agent
+      ansible.windows.win_stat:
+        path: "{{ nessus_cli }}"
+      register: cli_before
+
+    - name: Copy, install and link the agent
+      when: nessus_mode == 'install' and not cli_before.stat.exists
+      block:
+        - name: Create the destination folder
+          ansible.windows.win_file:
+            path: "{{ nessus_windows_dest_dir }}"
+            state: directory
+        - name: Copy the MSI from the shared path on the Linux server
+          ansible.windows.win_copy:
+            src: "{{ nessus_windows_msi_src }}"
+            dest: "{{ msi_path }}"
+        - name: Install the MSI from the destination folder
+          ansible.windows.win_package:
+            path: "{{ msi_path }}"
+            arguments: /qn /norestart
+            creates_path: "{{ nessus_cli }}"
+            state: present
+        - name: Link the agent to the manager
+          ansible.windows.win_command:
+            argv: "{{ [nessus_cli, 'agent', 'link', '--key=' ~ nessus_linking_key, '--host=' ~ nessus_manager_host, '--port=' ~ nessus_manager_port] + (['--groups=' ~ nessus_groups] if nessus_groups else []) }}"
+          no_log: true
+        - name: Start the agent service
+          ansible.windows.win_service:
+            name: "Tenable Nessus Agent"
+            start_mode: auto
+            state: started
+
+    - name: Check the agent again
+      ansible.windows.win_stat:
+        path: "{{ nessus_cli }}"
+      register: cli_after
+
+    - name: Read the agent version
+      ansible.windows.win_command:
+        argv: ["{{ nessus_cli }}", "-v"]
+      register: ver_after
+      changed_when: false
+      failed_when: false
+      when: cli_after.stat.exists
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "NESSUS_RESULT|{{ 'present' if cli_after.stat.exists and ((ver_after.stdout | default('')) | regex_search('[0-9]+[.][0-9]+[.][0-9]+')) else 'missing' }}|{{ (ver_after.stdout | default('')) | regex_search('[0-9]+[.][0-9]+[.][0-9]+') | default('', true) }}"

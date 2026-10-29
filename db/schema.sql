@@ -265,3 +265,5 @@ CREATE INDEX IF NOT EXISTS idx_migration_vms_proj ON migration_vms (project_id, 
 -- Widening a VARCHAR is a catalog-only change: it does not rewrite rows or fire the decommission_log guard trigger.
 ALTER TABLE decommission_log ALTER COLUMN source TYPE VARCHAR(48);
 ALTER TABLE nessus_status    ALTER COLUMN source TYPE VARCHAR(48);
+-- A failed SSH check (unreachable, bad credentials, install error) is kept apart from 'not installed'.
+ALTER TABLE nessus_status ADD COLUMN IF NOT EXISTS check_error TEXT;
