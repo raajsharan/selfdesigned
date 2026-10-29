@@ -14,7 +14,7 @@ export default function LockScreen() {
   const name = user.full_name || user.email;
   return (
     <AuthShell title="Locked Screen" subtitle="Enter your password to unlock the screen!"
-      avatar={<div className="auth-avatar"><Avatar size={88} style={{ fontSize: 34 }}>{name.slice(0, 1).toUpperCase()}</Avatar><div>{name}</div></div>}
+      avatar={<div className="auth-avatar"><Avatar size={88} src={user.photo || undefined} style={{ fontSize: 34 }}>{name.slice(0, 1).toUpperCase()}</Avatar><div>{name}</div></div>}
       footer={<>Not you ? return <a onClick={logout}>Sign In</a></>}>
       {err && <Alert type="error" message={err} showIcon style={{ marginBottom: 16 }} />}
       <Form layout="vertical" onFinish={submit} requiredMark={false}>
