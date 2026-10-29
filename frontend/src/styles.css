@@ -23,10 +23,6 @@ body { -webkit-font-smoothing: antialiased; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 .sider-logo { display: flex; align-items: center; gap: 10px; padding: 14px 16px; color: #fff; font-weight: 600; font-size: 15px; min-height: 56px; }
 .sider-logo img { height: 28px; max-width: 120px; object-fit: contain; }
-.sider-edit { display: flex; gap: 4px; padding: 8px 12px 12px; }
-.sider-edit .ant-btn { color: #9db4b8; }
-.sider-drag { display: block; cursor: grab; border-radius: 4px; }
-.sider-drag.over { outline: 1px dashed #7f9a9e; }
 .sider-group { color: #7f9a9e; font-size: 11px; padding: 14px 20px 4px; letter-spacing: .04em; }
 .auth-wrap { position: relative; min-height: 100vh; overflow: hidden; background: radial-gradient(ellipse at 30% 20%, #17434a 0%, #0c1d20 60%, #070f11 100%); }
 .infra-bg { position: absolute; inset: 0; }
