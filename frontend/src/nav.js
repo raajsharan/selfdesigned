@@ -46,24 +46,12 @@ export const NAV = [
   ] },
 ];
 export const ALL_ITEMS = NAV.flatMap((g) => g.items);
-export const NAV_ORDER_KEY = 'inv_nav_order';
 
-/** Apply the user's saved drag-and-drop order within each group (unknown keys keep default order). */
-export function orderedGroups(allowed) {
-  const rank = savedRank();
+/** key -> position in the saved order (kept on the server, set by the superadmin); keys never saved sort last, in default order. */
+export const rankFrom = (order) => (k) => { const i = order.indexOf(k); return i === -1 ? 1e6 : i; };
+
+/** Apply the saved order within each group. */
+export function orderedGroups(allowed, order = []) {
+  const rank = rankFrom(order);
   return NAV.map((g) => ({ ...g, items: g.items.filter((i) => allowed.has(i.key)).sort((a, b) => rank(a.key) - rank(b.key) || 0) })).filter((g) => g.items.length);
-}
-
-/** key -> position in the saved order; keys that were never saved sort last, in their default order. */
-export function savedRank() {
-  let saved = [];
-  try { saved = JSON.parse(localStorage.getItem(NAV_ORDER_KEY) || '[]'); } catch { /* ignore */ }
-  return (k) => { const i = saved.indexOf(k); return i === -1 ? 1e6 : i; };
-}
-
-export function saveOrder(keys) {
-  try { localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(keys)); } catch { /* ignore */ }
-}
-export function resetOrder() {
-  try { localStorage.removeItem(NAV_ORDER_KEY); } catch { /* ignore */ }
 }

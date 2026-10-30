@@ -7,7 +7,7 @@ import { useThemeMode } from '../../context/ThemeContext';
 import { usePages } from '../../context/PagesContext';
 import { iconFor } from '../pageIcons';
 import { useBranding } from '../../context/BrandingContext';
-import { orderedGroups, ALL_ITEMS, savedRank, saveOrder } from '../../nav';
+import { orderedGroups, ALL_ITEMS, rankFrom } from '../../nav';
 import api, { errMsg } from '../../api/client';
 
 const { Sider, Header, Content } = Layout;
@@ -51,16 +51,17 @@ function ChangePassword({ open, onClose }) {
 }
 
 export default function AppLayout() {
-  const { user, pages, logout, lock, has } = useAuth();
+  const { user, pages, logout, lock, has } = useAuth(); const { message } = App.useApp();
   const { app_name, logo_data_url } = useBranding();
   const { pages: designed } = usePages();
   const nav = useNavigate(); const loc = useLocation();
   const [collapsed, setCollapsed] = useState(false); const [pw, setPw] = useState(false);
-  const [editing, setEditing] = useState(false); const [ver, setVer] = useState(0); const [drag, setDrag] = useState(null); const [over, setOver] = useState(null);
+  const [editing, setEditing] = useState(false); const [order, setOrder] = useState([]); const isSuper = user.role === 'superadmin'; const [drag, setDrag] = useState(null); const [over, setOver] = useState(null);
+  useEffect(() => { api.get('/nav-order').then((r) => setOrder(r.data)).catch(() => {}); }, []);
   const [openKeys, setOpenKeys] = useState([]);   // sections start closed; the one holding the current page opens with it
 
-  const groups = useMemo(() => orderedGroups(pages), [pages, loc.key, ver]);   // re-read the saved order after Menu Order edits
-  const designedSorted = useMemo(() => { const rank = savedRank(); return [...designed].sort((a, b) => rank(`page:${a.slug}`) - rank(`page:${b.slug}`)); }, [designed, loc.key, ver]);
+  const groups = useMemo(() => orderedGroups(pages, order), [pages, order]);
+  const designedSorted = useMemo(() => { const rank = rankFrom(order); return [...designed].sort((a, b) => rank(`page:${a.slug}`) - rank(`page:${b.slug}`)); }, [designed, order]);
   const dynSelected = designed.find((p) => loc.pathname === `/p/${p.slug}` || loc.pathname.startsWith(`/p/${p.slug}/`));
   const selected = dynSelected ? null : ALL_ITEMS.filter((i) => (i.path === '/' ? loc.pathname === '/' : loc.pathname.startsWith(i.path))).sort((a, b) => b.path.length - a.path.length)[0];
 
@@ -73,7 +74,7 @@ export default function AppLayout() {
   ];
   const selKey = dynSelected ? `page:${dynSelected.slug}` : selected?.key;
   // Administration > "Rearrange menu" switches the sidebar into drag mode: every section opens and items can be dragged within their section.
-  const REARRANGE = 'admin-nav-order';
+  const REARRANGE = 'admin-nav-order';   // only the superadmin sees this entry
   const drop = (sid, to) => {
     if (!drag || drag.sid !== sid || drag.key === to) return;
     const next = sections.map((s) => {
@@ -81,7 +82,8 @@ export default function AppLayout() {
       const list = s.items.filter((x) => x.key !== REARRANGE); const from = list.findIndex((x) => x.key === drag.key); const at = list.findIndex((x) => x.key === to);
       const [moved] = list.splice(from, 1); list.splice(at, 0, moved); return { ...s, items: s.items.some((x) => x.key === REARRANGE) ? [...list, s.items.find((x) => x.key === REARRANGE)] : list };
     });
-    saveOrder(next.flatMap((s) => s.items.map((i) => i.key))); setVer((v) => v + 1);
+    const keys = next.flatMap((s) => s.items.map((i) => i.key)); const before = order; setOrder(keys);
+    api.put('/nav-order', { keys }).catch((e) => { setOrder(before); message.error(errMsg(e)); });
   };
   const entry = (s, i) => {
     if (i.key === REARRANGE) return { key: i.key, icon: editing ? <CheckOutlined /> : <DragOutlined />, label: editing ? 'Done rearranging' : 'Rearrange menu' };
@@ -90,7 +92,7 @@ export default function AppLayout() {
         onDragEnd={() => { setDrag(null); setOver(null); }} onDrop={() => { drop(s.id, i.key); setDrag(null); setOver(null); }}>{i.label}</span>
       : i.label };
   };
-  const items = sections.map((s) => ({ key: `g-${s.id}`, icon: <s.icon />, label: s.id, children: s.items.map((i) => entry(s, i)) }));
+  const items = sections.map((s) => ({ key: `g-${s.id}`, icon: <s.icon />, label: s.id, children: s.items.filter((i) => isSuper || i.key !== REARRANGE).map((i) => entry(s, i)) }));
   const activeId = sections.find((s) => s.items.some((i) => i.key === selKey))?.id;
   useEffect(() => { if (activeId) setOpenKeys((k) => (k.includes(`g-${activeId}`) ? k : [...k, `g-${activeId}`])); }, [activeId]);   // landing on a page opens its section
 

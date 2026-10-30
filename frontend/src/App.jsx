@@ -32,7 +32,6 @@ import TeamsNotifications from './pages/Admin/TeamsNotifications';
 import Backup from './pages/Admin/Backup';
 import AuditLogs from './pages/Admin/AuditLogs';
 import Branding from './pages/Admin/Branding';
-import NavOrder from './pages/Admin/NavOrder';
 import { PagesProvider } from './context/PagesContext';
 import { ALL_ITEMS } from './nav';
 
@@ -50,7 +49,7 @@ const ROUTES = {
   'admin-user-page-control': <UserPageControl />, 'admin-pages': <PagesAdmin />, 'admin-dropdowns': <Dropdowns />,
   'admin-tag-ranges': <TagRanges />, 'admin-compliance': <ComplianceConfig />,
   'admin-migration-config': <MigrationConfig />, 'admin-teams': <TeamsNotifications />, 'admin-backup': <Backup />,
-  'admin-audit': <AuditLogs />, 'admin-branding': <Branding />, 'admin-nav-order': <NavOrder />,
+  'admin-audit': <AuditLogs />, 'admin-branding': <Branding />, 'admin-nav-order': <Navigate to="/" replace />,
 };
 
 export default function App() {

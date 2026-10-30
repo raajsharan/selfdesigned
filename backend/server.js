@@ -51,6 +51,7 @@ const PORT = parseInt(process.env.PORT, 10) || 4000;
   await ensureSuperadmin();
   require('./src/services/vmwareSchedulerService').start();
   require('./src/services/proxmoxSchedulerService').start();
+  require('./src/services/ecGroupService').scheduler.start();
   require('./src/services/backupService').startScheduler();
   const server = app.listen(PORT, () => console.log(`[server] listening on :${PORT} (${isProd ? 'production' : 'development'})`));
   const stop = () => { server.close(() => db.pool.end().then(() => process.exit(0))); setTimeout(() => process.exit(1), 10000).unref(); };

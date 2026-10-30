@@ -268,3 +268,7 @@ body { -webkit-font-smoothing: antialiased; }
 .nw-card { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--surface-2); min-width: 0; }
 .nw-card-h { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
 .nw-path { margin-top: 6px; font-family: Consolas, monospace; font-size: 11px; color: var(--muted); word-break: break-all; }
+
+/* Endpoint Central summary strip: six figures, two per row on a phone. */
+.nx-summary.six { grid-template-columns: repeat(6, 1fr); }
+@media (max-width: 800px) { .nx-summary.six { grid-template-columns: repeat(2, 1fr); } .nx-summary.six .nx-cell { border-top: 1px solid var(--border); } }

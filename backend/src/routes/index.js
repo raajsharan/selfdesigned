@@ -2,6 +2,7 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const db = require('../config/db');
 const { authenticate, authorize, requirePageAccess } = require('../middleware/auth');
+const { getSetting, setSetting } = require('../services/settingsService');
 const validate = require('../middleware/validate');
 const { uploader } = require('../utils/upload');
 const h = require('../utils/asyncHandler');
@@ -23,6 +24,10 @@ const adminOnly = authorize('superadmin', 'admin');
 
 api.get('/health', h(async (req, res) => { await db.query('SELECT 1'); res.json({ ok: true }); }));
 api.get('/branding', h(lookups.getBranding));                       // public: themes the login page
+// Sidebar order: everyone reads it, only the superadmin changes it.
+api.get('/nav-order', auth, h(async (req, res) => res.json((await getSetting('nav_order', { keys: [] })).keys)));
+api.put('/nav-order', auth, authorize('superadmin'), body('keys').isArray({ max: 200 }), body('keys.*').isString().isLength({ max: 100 }), validate,
+  h(async (req, res) => { await setSetting('nav_order', { keys: req.body.keys }); res.json(req.body.keys); }));
 api.use('/auth', require('./authRoutes'));
 api.use('/users', require('./userRoutes'));
 api.use('/roles', require('./rolesRoutes'));
@@ -73,7 +78,13 @@ api.get('/audit', auth, requirePageAccess('admin-audit'), h(lookups.auditList));
 
 // ---- ManageEngine Endpoint Central
 const ecPage = [auth, requirePageAccess('endpoint-central')]; const ecCfg = [auth, requirePageAccess('admin-endpoint-central')];
-api.get('/endpoint-central', ...ecPage, h(ec.agents));
+api.get('/endpoint-central', ...ecPage, h(ec.computers));
+api.get('/endpoint-central/groups', ...ecPage, h(ec.groups));
+api.get('/endpoint-central/groups/sync', ...ecPage, h(ec.syncState));
+api.post('/endpoint-central/groups/sync', ...ecPage, body('force').optional().isBoolean(), validate, h(ec.syncStart));
+api.put('/endpoint-central/groups/auto-sync', ...ecPage, body('enabled').isBoolean(), body('interval_minutes').optional().isInt({ min: 15, max: 10080 }), validate, h(ec.putAutoSync));
+api.get('/endpoint-central/groups/:id/members', ...ecPage, intId, validate, h(ec.groupMembers));
+api.get('/endpoint-central/staged', ...ecPage, query('status').optional().isIn(['1', '2', '3']), validate, h(ec.staged));
 api.get('/endpoint-central/software', ...ecPage, h(ec.software));
 api.get('/endpoint-central/config', ...ecCfg, h(ec.getConfig));
 api.put('/endpoint-central/config', ...ecCfg, body('base_url').optional().isString().isLength({ max: 500 }), body('auth_mode').optional().isIn(['apikey', 'credentials']), validate, h(ec.putConfig));

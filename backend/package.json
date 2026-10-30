@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test --test-concurrency=1 test/smoke.test.js"
+    "test": "node --test --test-concurrency=1 test/smoke.test.js",
+    "test:ec": "node --test --test-concurrency=1 test/endpoint-central.test.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

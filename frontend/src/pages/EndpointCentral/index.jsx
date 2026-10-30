@@ -1,39 +1,56 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, App, Button, Input, Table, Tabs, Tag } from 'antd';
+import { Alert, Button, Input, Table, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import api, { errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import ConfigModal from './ConfigModal';
+import ComputersTab from './ComputersTab';
+import GroupsTab from './GroupsTab';
+import StagedTab from './StagedTab';
 import { pager } from '../../utils/pager';
 
-export default function EndpointCentral() {
-  const { message } = App.useApp(); const { has } = useAuth();
-  const [tab, setTab] = useState('agents'); const [rows, setRows] = useState({}); const [loading, setLoading] = useState(false); const [err, setErr] = useState(''); const [cfg, setCfg] = useState(false); const [q, setQ] = useState('');
-  const load = useCallback(async (k, refresh) => {
+function Software({ reload }) {
+  const [rows, setRows] = useState([]); const [loading, setLoading] = useState(false); const [err, setErr] = useState(''); const [q, setQ] = useState('');
+  const load = useCallback(async (refresh) => {
     setLoading(true); setErr('');
-    try {
-      const res = await api.get(k === 'agents' ? '/endpoint-central' : '/endpoint-central/software', { params: refresh ? { refresh: 1 } : {} });
-      setRows((r) => ({ ...r, [k]: res.data }));
-    }
-    catch (e) { setErr(errMsg(e)); setRows((r) => ({ ...r, [k]: [] })); } finally { setLoading(false); }
+    try { setRows((await api.get('/endpoint-central/software', { params: refresh ? { refresh: 1 } : {} })).data); } catch (e) { setErr(errMsg(e)); setRows([]); } finally { setLoading(false); }
   }, []);
-  useEffect(() => { load(tab); }, [tab, load]);
-  const f = (list) => (list || []).filter((x) => !q || JSON.stringify(x).toLowerCase().includes(q.toLowerCase()));
+  useEffect(() => { load(false); }, [load]);
+  useEffect(() => { if (reload) load(true); }, [reload]); // eslint-disable-line
+  const list = rows.filter((x) => !q || JSON.stringify(x).toLowerCase().includes(q.toLowerCase()));
   return (
-    <div className="page">
-      <PageHeader title="ManageEngine Endpoint Central" sub="Agent health and installed software, pulled live from Endpoint Central."
-        extra={<><Button onClick={() => load(tab, true)}>Refresh</Button>{has('admin-endpoint-central') && <Button type="primary" onClick={() => setCfg(true)}>Configure</Button>}</>} />
+    <div>
       {err && <Alert type="error" showIcon message={err} style={{ marginBottom: 12 }} />}
       <div className="toolbar"><Input.Search allowClear placeholder="Filter" style={{ width: 260 }} onSearch={setQ} /></div>
-      <Tabs activeKey={tab} onChange={setTab} items={[
-        { key: 'agents', label: 'Agents', children: <Table rowKey={(r) => r.resource_id ?? r.name} size="small" loading={loading} dataSource={f(rows.agents)} pagination={pager(25, (f(rows.agents))?.length ?? 0)} scroll={{ x: 'max-content' }}
-          columns={[{ title: 'Computer', dataIndex: 'name' }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'OS', dataIndex: 'os' }, { title: 'Agent version', dataIndex: 'agent_version' }, { title: 'Status', dataIndex: 'status', render: (s) => <Tag color={s === 'Live' ? 'green' : s === 'Down' ? 'red' : 'orange'}>{s}</Tag> },
-            { title: 'Last contact', dataIndex: 'last_contact', render: (v) => (v ? dayjs(v).format('D MMM YYYY HH:mm') : '-') }]} /> },
-        { key: 'software', label: 'Software inventory', children: <Table rowKey={(r, i) => `${r.name}-${r.version}-${i}`} size="small" loading={loading} dataSource={f(rows.software)} pagination={pager(25, (f(rows.software))?.length ?? 0)}
-          columns={[{ title: 'Software', dataIndex: 'name' }, { title: 'Version', dataIndex: 'version' }, { title: 'Vendor', dataIndex: 'vendor' }, { title: 'Installed on', dataIndex: 'installed_on' }]} /> },
+      <Table rowKey={(r, i) => `${r.name}-${r.version}-${i}`} size="small" loading={loading} dataSource={list} pagination={pager(25, list.length)}
+        columns={[{ title: 'Software', dataIndex: 'name' }, { title: 'Version', dataIndex: 'version' }, { title: 'Vendor', dataIndex: 'vendor' }, { title: 'Installed on', dataIndex: 'installed_on' }]} />
+    </div>
+  );
+}
+
+export default function EndpointCentral() {
+  const { has } = useAuth();
+  const [tab, setTab] = useState('computers'); const [cfg, setCfg] = useState(false);
+  const [counts, setCounts] = useState({});
+  // `reload` counters: bumping one makes that tab fetch again (Refresh forces EC; a finished sync only re-reads our own data).
+  const [refresh, setRefresh] = useState(0); const [groupsVersion, setGroupsVersion] = useState(0);
+  const setCount = (k) => (n) => setCounts((c) => (c[k] === n ? c : { ...c, [k]: n }));
+  const onTotal = useCallback(setCount('computers'), []); const onGroups = useCallback(setCount('groups'), []); const onStaged = useCallback(setCount('staged'), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const label = (t, k) => (counts[k] === undefined ? t : `${t} (${counts[k]})`);
+  const onChanged = () => { setRefresh((n) => n + 1); setGroupsVersion((n) => n + 1); };
+
+  return (
+    <div className="page">
+      <PageHeader title="ManageEngine Endpoint Central" sub="Computer status, custom groups and staged computers, read from Endpoint Central. Nothing here changes data in Endpoint Central."
+        extra={<><Button onClick={() => setRefresh((n) => n + 1)}>Refresh</Button>{has('admin-endpoint-central') && <Button type="primary" onClick={() => setCfg(true)}>Configure</Button>}</>} />
+      <Tabs activeKey={tab} onChange={setTab} destroyInactiveTabPane={false} items={[
+        { key: 'computers', label: label('Computers', 'computers'), children: <ComputersTab reload={refresh} groupsVersion={groupsVersion} onTotal={onTotal} onOpenGroups={() => setTab('groups')} /> },
+        { key: 'groups', label: label('Custom groups', 'groups'), children: <GroupsTab reload={refresh} onCount={onGroups} onSynced={() => setGroupsVersion((n) => n + 1)} /> },
+        { key: 'staged', label: label('Staged', 'staged'), children: <StagedTab reload={refresh} onTotal={onStaged} /> },
+        { key: 'software', label: 'Software inventory', children: <Software reload={refresh} /> },
       ]} />
-      <ConfigModal open={cfg} onClose={() => setCfg(false)} onSaved={() => load(tab, true)} />
+      <ConfigModal open={cfg} onClose={() => setCfg(false)} onSaved={onChanged} />
     </div>
   );
 }

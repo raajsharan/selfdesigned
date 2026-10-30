@@ -3,7 +3,7 @@ const path = require('path');
 const db = require('../config/db');
 const { getSetting, setSetting } = require('../services/settingsService');
 
-const SQL_FILES = ['schema.sql', 'vmware_schema.sql', 'proxmox_schema.sql', 'tenable_schema.sql', 'vmware_asset_edits.sql'];
+const SQL_FILES = ['schema.sql', 'vmware_schema.sql', 'proxmox_schema.sql', 'tenable_schema.sql', 'vmware_asset_edits.sql', 'endpoint_central_schema.sql'];
 
 const DEFAULT_DROPDOWNS = {
   server_status:  ['Active', 'Inactive', 'Under Maintenance', 'NA', 'Not in Scope'],
