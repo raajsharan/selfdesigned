@@ -47,12 +47,19 @@ function authHeader(c) {
   return { Authorization: decrypt(c.token_enc) };
 }
 
+const CERT_CODES = new Set(['UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'SELF_SIGNED_CERT_IN_CHAIN', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'CERT_HAS_EXPIRED', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'ERR_TLS_CERT_ALTNAME_INVALID']);
 async function detectPrefix(c) {
   if (c.api_prefix) return c.api_prefix;
+  let failure = null;
   for (const p of PREFIXES) {
-    const r = await requestJson(`${c.base_url}${p}/desktop/authentication`, { method: 'GET', verifySsl: c.verify_ssl }).catch(() => null);
-    if (r && r.status && r.status < 500 && r.status !== 404) { c.api_prefix = p; await setSetting(KEY, c); return p; }
+    try {
+      const r = await requestJson(`${c.base_url}${p}/desktop/authentication`, { method: 'GET', verifySsl: c.verify_ssl });
+      if (r.status && r.status < 500 && r.status !== 404) { c.api_prefix = p; await setSetting(KEY, c); return p; }   // 405 and 401 both mean the API is there
+    } catch (e) { failure = e; }
   }
+  // A request that never got an answer says why; hiding it as "not found" sent people looking at the URL instead of the certificate.
+  if (failure && CERT_CODES.has(failure.code)) throw bad(`The server's TLS certificate is not trusted (${failure.code}). Switch off "Verify TLS certificate", or make this server trust your certificate authority (NODE_EXTRA_CA_CERTS).`);
+  if (failure) throw bad(`Could not reach Endpoint Central at that URL: ${failure.code || failure.message}`);
   throw bad('Could not find the Endpoint Central REST API at that URL');
 }
 
