@@ -10,6 +10,8 @@ export default function ConfigModal({ open, onClose, onSaved }) {
 
   const run = async (fn, ok) => { setBusy(true); try { const r = await fn(); if (ok) message.success(ok); return r; } catch (e) { message.error(errMsg(e)); } finally { setBusy(false); } };
   const save = async () => { const v = await form.validateFields(); const r = await run(() => api.put('/endpoint-central/config', v), 'Saved'); if (r) { await load(); onSaved?.(); } return r; };
+  // Test what is on screen: save the form first, otherwise the test runs against the previously saved settings.
+  const test = async () => { if (await save()) await run(() => api.post('/endpoint-central/test'), 'Connection works'); };
   const login = async () => {
     if (!(await save())) return;
     const r = await run(() => api.post('/endpoint-central/login'));
@@ -18,7 +20,7 @@ export default function ConfigModal({ open, onClose, onSaved }) {
   const submitOtp = async () => { const r = await run(() => api.post('/endpoint-central/login/otp', { otp }), 'Signed in'); if (r) { setOtp(null); load(); onSaved?.(); } };
 
   return (
-    <Modal open={open} onCancel={onClose} title="Endpoint Central connection" width={560} destroyOnClose footer={[<Button key="t" loading={busy} onClick={() => run(() => api.post('/endpoint-central/test'), 'Connection works')}>Test connection</Button>, <Button key="s" type="primary" loading={busy} onClick={save}>Save</Button>]}>
+    <Modal open={open} onCancel={onClose} title="Endpoint Central connection" width={560} destroyOnClose footer={[<Button key="t" loading={busy} onClick={test}>Test connection</Button>, <Button key="s" type="primary" loading={busy} onClick={save}>Save</Button>]}>
       <Form form={form} layout="vertical">
         <Form.Item name="base_url" label="Server URL" rules={[{ required: true }]} extra="For example https://endpointcentral.example.com:8383. The API path is detected automatically."><Input /></Form.Item>
         <Form.Item name="verify_ssl" label="Verify TLS certificate" valuePropName="checked"><Switch /></Form.Item>

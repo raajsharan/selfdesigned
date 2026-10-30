@@ -79,7 +79,10 @@ async function request(path, { headers = {}, prefix, absolute = false, throttle 
     throw bad('Endpoint Central rejected the credentials. The key needs the SOM / Common read scope and an administrator account.');
   }
   if (r.status === 429) throw Object.assign(new HttpError(429, 'Endpoint Central is rate limiting this server. Wait 5 minutes and try again.'), { rateLimited: true });
-  if (r.status >= 300) throw bad(`Endpoint Central returned HTTP ${r.status}`);
+  if (r.status >= 300) {
+    const why = r.json && (r.json.error_description || r.json.message || (r.json.message_response && r.json.message_response.error_description)) || String(r.text || '').replace(/\s+/g, ' ').slice(0, 160);
+    throw Object.assign(bad(`Endpoint Central returned HTTP ${r.status}${why ? `: ${why}` : ''}`), { ecStatus: r.status });
+  }
   return { status: r.status, json: r.json };
 }
 async function call(path) {
@@ -87,10 +90,18 @@ async function call(path) {
   return json && json.message_response ? json.message_response : json;
 }
 
+// EC builds disagree on the page-size parameter name; the one that works is remembered.
+const PAGE_PARAMS = ['pagelimit', 'limit'];
+let pageParam = null;
 async function pagedList(path, listKey) {
   const out = [];
   for (let page = 1; page <= 40; page++) {
-    const m = await call(`${path}${path.includes('?') ? '&' : '?'}pagelimit=500&limit=500&page=${page}`);
+    const sep = path.includes('?') ? '&' : '?';
+    let m;
+    for (const name of pageParam ? [pageParam] : PAGE_PARAMS) {
+      try { m = await call(`${path}${sep}${name}=500&page=${page}`); pageParam = name; break; }
+      catch (e) { if (e.ecStatus !== 400 || pageParam || name === PAGE_PARAMS[PAGE_PARAMS.length - 1]) throw e; }
+    }
     const items = (m && (m[listKey] || m.list)) || [];
     out.push(...items);
     if (items.length < 500 || (m && m.total && out.length >= m.total)) break;
