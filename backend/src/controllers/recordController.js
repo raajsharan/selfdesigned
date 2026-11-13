@@ -10,6 +10,7 @@ const teams = require('../services/teamsNotificationService');
 const decommissionSvc = require('../services/decommissionService');
 const { validateTag, nextFreeTags, getRange, formatTag } = require('../services/tagRangeService');
 const { ROLE_COLUMNS, promote, roleKeys } = require('../services/pageService');
+const hostRename = require('../services/hostnameRenameService');
 const { unionSql } = require('../utils/inventoryUnion');
 
 const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -208,14 +209,16 @@ exports.create = async (req, res) => {
   audit(req, 'create', `page:${req.page.slug}`, row.id, { name: display(row) });
   teams.notify('asset_created', { title: `New record: ${display(row)}`, status: 'good',
     facts: [['Page', req.page.title], ['IP', row.ip_address], ['MAC', row.mac_address], ['Asset tag', row.asset_tag], ['By', req.user.email]] });
-  res.status(201).json(sanitize(row, req.page));
+  const rn = req.body.apply_hostname ? await hostRename.request(req, req.page, row, req.body.apply_hostname) : {};
+  res.status(201).json({ ...sanitize(row, req.page), ...rn });
 };
 
 exports.update = async (req, res) => {
   const { after, changed } = await db.withTx((c) => updateRecord(c, req.page, req.params.id, req.body.data || {}, req.user));
   audit(req, 'update', `page:${req.page.slug}`, after.id, { name: display(after), changed });
   if (changed.length) teams.notify('asset_updated', { title: `Record updated: ${display(after)}`, status: 'info', facts: [['Page', req.page.title], ['Changed', changed.join(', ')], ['By', req.user.email]] });
-  res.json(sanitize(after, req.page));
+  const rn = req.body.apply_hostname ? await hostRename.request(req, req.page, after, req.body.apply_hostname) : {};
+  res.json({ ...sanitize(after, req.page), ...rn });
 };
 
 exports.remove = async (req, res) => {

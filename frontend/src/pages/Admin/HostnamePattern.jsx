@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App, Button, Card, Input, Select, Spin } from 'antd';
+import { Alert, App, Button, Card, Input, Select, Spin, Switch } from 'antd';
 import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import api, { errMsg } from '../../api/client';
 import PageHeader from '../../components/PageHeader';
@@ -31,14 +31,14 @@ function CodeList({ list, onChange, what }) {
 export default function HostnamePattern() {
   const { message } = App.useApp();
   const [c, setC] = useState(null); const [saving, setSaving] = useState(false); const [loc, setLoc] = useState('');
-  useEffect(() => { api.get('/hostname-pattern').then((r) => setC(r.data)).catch((e) => message.error(errMsg(e))); }, [message]);
+  useEffect(() => { api.get('/hostname-pattern').then((r) => setC({ ...r.data, suggest_pages: r.data.suggest_pages ?? r.data.pages.map((p) => p.slug) })).catch((e) => message.error(errMsg(e))); }, [message]);
   if (!c) return <div className="page"><Spin /></div>;
   const set = (patch) => setC((x) => ({ ...x, ...patch }));
   const move = (i, d) => { const o = [...c.order]; [o[i], o[i + d]] = [o[i + d], o[i]]; set({ order: o }); };
   const example = { site: 'BUR', os: 'W', team: 'ITO', tier: 'P', tag: '0001' };
   const save = async () => {
     setSaving(true);
-    try { const { locations, ...body } = c; const r = await api.put('/hostname-pattern', body); setC(r.data); message.success('Saved'); } catch (e) { message.error(errMsg(e)); } finally { setSaving(false); }
+    try { const { locations, pages, ...body } = c; const r = await api.put('/hostname-pattern', body); setC(r.data); message.success('Saved'); } catch (e) { message.error(errMsg(e)); } finally { setSaving(false); }
   };
   const addLoc = async () => {
     if (!loc.trim()) return;
@@ -48,6 +48,23 @@ export default function HostnamePattern() {
     <div className="page">
       <PageHeader title="Hostname Naming" sub="Controls the “Suggested hostname” panel on record forms: the order segments are joined in, which asset types get it, and the Site / Team / Tier codes."
         extra={<Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={save}>Save</Button>} />
+      <Card style={{ marginBottom: 16 }}>
+        <H title="Where it applies" sub="Choose the pages that show the Suggested hostname panel, and the pages whose form may also rename the host itself with Ansible when the record is saved." />
+        <label style={{ display: 'block', marginBottom: 12 }}>Show the Suggested hostname on these pages <span style={{ color: 'var(--muted-2)' }}>(a page needs a field with the Hostname role)</span>
+          <Select mode="multiple" style={{ width: '100%' }} placeholder="No pages" value={c.suggest_pages} onChange={(v) => set({ suggest_pages: v })} options={c.pages.map((p) => ({ value: p.slug, label: p.title }))} /></label>
+        <label style={{ display: 'block', marginBottom: 12 }}>Offer "Apply to the host on save (Ansible)" on these pages
+          <Select mode="multiple" style={{ width: '100%' }} placeholder="No pages" value={c.rename_pages} onChange={(v) => set({ rename_pages: v })} options={c.pages.map((p) => ({ value: p.slug, label: p.title }))} /></label>
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="Renaming changes the real machine"
+          description="It connects over SSH (Linux with sudo; Windows through OpenSSH Server) with the login saved on the record, and needs the record's IP address and OS type. It only runs when the person saving ticks Apply to the host on the form. A Windows rename needs a reboot to take effect; a Linux one does not." />
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span><Switch checked={c.allow_reboot} onChange={(v) => set({ allow_reboot: v })} /> Reboot the host when the new name requires it</span>
+          <label>Tier taken from field key <Input style={{ width: 200 }} className="mono" placeholder="optional, e.g. tier" value={c.tier_field} onChange={(e) => set({ tier_field: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })} /></label>
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+          <label>SSH username field(s) on the record <Input style={{ width: 280 }} value={c.login_user_fields} onChange={(e) => set({ login_user_fields: e.target.value })} /></label>
+          <label>SSH password field(s) on the record <Input style={{ width: 280 }} value={c.login_pass_fields} onChange={(e) => set({ login_pass_fields: e.target.value })} /></label>
+        </div>
+      </Card>
       <Card style={{ marginBottom: 16 }}>
         <H title="Hostname pattern" sub="The segments below are joined into a hostname. Use the arrows to reorder. The OS letter is fixed by the record's OS (Windows = W, Linux / Proxmox = L, VMware = E)." />
         {c.order.map((s, i) => (

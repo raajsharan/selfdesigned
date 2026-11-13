@@ -33,6 +33,7 @@ api.use('/users', require('./userRoutes'));
 api.use('/roles', require('./rolesRoutes'));
 
 api.get('/hostname-pattern', auth, h(require('../controllers/hostnamePatternController').get));   // forms read it
+api.get('/hostname-pattern/rename-jobs/:jobId', auth, h(require('../controllers/hostnamePatternController').renameJob));
 api.put('/hostname-pattern', auth, requirePageAccess('admin-hostname-pattern'), body('order').isArray(), validate, h(require('../controllers/hostnamePatternController').put));
 api.post('/hostname-pattern/locations', auth, requirePageAccess('admin-hostname-pattern'), body('name').isString().isLength({ min: 1, max: 255 }), validate, h(require('../controllers/hostnamePatternController').addLocation));
 api.use('/field-library', require('./fieldLibraryRoutes'));

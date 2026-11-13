@@ -26,11 +26,24 @@ function TagHelper({ slug, department, onUse }) {
 }
 
 /** Add / edit popup: header, a sections sidebar that scrolls to each card, the designed form, and a footer that tracks unsaved changes (Ctrl+S saves). */
+/** Follows a background host rename and reports the outcome (a Windows rename can include a reboot, so it may take minutes). */
+function trackRename(jobId, message) {
+  const key = `rename-${jobId}`; message.loading({ content: 'Renaming the host with Ansible...', key, duration: 0 });
+  const tick = async () => {
+    try {
+      const j = (await api.get(`/hostname-pattern/rename-jobs/${jobId}`)).data;
+      if (j.status !== 'done') return setTimeout(tick, 3000);
+      if (j.state === 'done') message.success({ content: j.message, key, duration: 10 }); else message.error({ content: `Host rename failed: ${j.message}`, key, duration: 12 });
+    } catch (e) { message.error({ content: errMsg(e), key, duration: 8 }); }
+  };
+  setTimeout(tick, 2000);
+}
+
 export default function RecordForm({ page, record, dropdowns, open, onClose, onSaved }) {
-  const { message } = App.useApp(); const { user } = useAuth();
+  const { message } = App.useApp(); const { user, canWrite } = useAuth();
   const [form] = Form.useForm(); const [saving, setSaving] = useState(false); const [revealed, setRevealed] = useState({});
   const [dirty, setDirty] = useState(false); const [active, setActive] = useState(null);
-  const scroller = useRef(null); const [hnPattern, setHnPattern] = useState(null);
+  const scroller = useRef(null); const [hnPattern, setHnPattern] = useState(null); const applyRef = useRef(null);
   useEffect(() => { if (open) api.get('/hostname-pattern').then((r) => setHnPattern(r.data)).catch(() => {}); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const cfg = page.config; const sections = (cfg.form?.sections || []).filter((s) => s.items.length);
   const roleKey = (role) => cfg.fields.find((f) => f.role === role)?.key;
@@ -38,7 +51,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
 
   useEffect(() => {
     if (!open) return;
-    setRevealed({}); setDirty(false); setActive(sections[0]?.id || null); form.resetFields();
+    applyRef.current = null; setRevealed({}); setDirty(false); setActive(sections[0]?.id || null); form.resetFields();
     form.setFieldsValue(record ? toFormValues(cfg, record.data) : toFormValues(cfg, Object.fromEntries((cfg.fields || []).filter((f) => f.type === 'boolean').map((f) => [f.key, false]))));
   }, [open, record, cfg, form]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -49,8 +62,11 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
     setSaving(true);
     try {
       const body = { data: toPayload(cfg, { ...form.getFieldsValue(true), ...values }) };
-      if (record) await api.put(`/p/${page.slug}/records/${record.id}`, body); else await api.post(`/p/${page.slug}/records`, body);
+      if (applyRef.current) body.apply_hostname = applyRef.current;   // ticked in the panel; reset whenever a form opens
+      const res = (record ? await api.put(`/p/${page.slug}/records/${record.id}`, body) : await api.post(`/p/${page.slug}/records`, body)).data;
       message.success(record ? 'Saved' : 'Created'); onSaved();
+      if (res.rename_skipped) message.warning(`Saved, but the host was not renamed: ${res.rename_skipped}`, 8);
+      if (res.rename_job) trackRename(res.rename_job, message);
     } catch (e) { message.error(errMsg(e)); } finally { setSaving(false); }
   }, [saving, form, cfg, record, page.slug, message, onSaved]);
 
@@ -108,7 +124,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
                   <div style={{ margin: '-12px 0 12px' }}><Button size="small" icon={<EyeOutlined />} onClick={() => reveal(f.key)}>Reveal stored value</Button>
                     {revealed[f.key] !== undefined && <span className="mono" style={{ marginLeft: 8 }}>{revealed[f.key] || '(empty)'}</span>}</div>);
                 if (tagKey && deptKey && f.key === tagKey) return <TagHelper slug={page.slug} department={form.getFieldValue(deptKey)} onUse={(tag) => { form.setFieldValue(tagKey, tag); setDirty(true); }} />;
-                if (hostKey && f.key === hostKey && hnPattern) return <HostnameHelper key={record?.id || 'new'} pattern={hnPattern} cfg={cfg} values={form.getFieldsValue(true)} onUse={(h) => { form.setFieldValue(hostKey, h); setDirty(true); }} />;
+                if (hostKey && f.key === hostKey && hnPattern && (hnPattern.suggest_pages ?? [page.slug]).includes(page.slug)) return <HostnameHelper canApply={(hnPattern.rename_pages || []).includes(page.slug) && canWrite} onApply={(v) => { applyRef.current = v; }} key={record?.id || 'new'} pattern={hnPattern} cfg={cfg} values={form.getFieldsValue(true)} onUse={(h) => { form.setFieldValue(hostKey, h); setDirty(true); }} />;
                 return null;
               }} />
           </Form>
