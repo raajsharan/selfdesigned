@@ -61,8 +61,9 @@ export default function HostnamePattern() {
           <label>Tier taken from field key <Input style={{ width: 200 }} className="mono" placeholder="optional, e.g. tier" value={c.tier_field} onChange={(e) => set({ tier_field: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })} /></label>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
-          <label>SSH username field(s) on the record <Input style={{ width: 280 }} value={c.login_user_fields} onChange={(e) => set({ login_user_fields: e.target.value })} /></label>
-          <label>SSH password field(s) on the record <Input style={{ width: 280 }} value={c.login_pass_fields} onChange={(e) => set({ login_pass_fields: e.target.value })} /></label>
+          <div style={{ width: '100%', color: 'var(--muted)' }}>The username and password are picked up automatically from the asset record's login fields (a password-type field and a username / login field). Only fill these in if a page uses unusual field names.</div>
+          <label>Username field(s), optional override <Input style={{ width: 280 }} placeholder="Detected automatically" value={c.login_user_fields} onChange={(e) => set({ login_user_fields: e.target.value })} /></label>
+          <label>Password field(s), optional override <Input style={{ width: 280 }} placeholder="Detected automatically" value={c.login_pass_fields} onChange={(e) => set({ login_pass_fields: e.target.value })} /></label>
         </div>
       </Card>
       <Card style={{ marginBottom: 16 }}>

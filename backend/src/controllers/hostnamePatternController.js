@@ -11,7 +11,7 @@ const DEFAULTS = {
   order: SEGMENTS, type_field: '', types: [], sites: {},
   suggest_pages: null,                 // null = every records page with a Hostname field; otherwise the page slugs
   rename_pages: [],                    // pages whose form may apply the hostname to the host with Ansible
-  tier_field: '', allow_reboot: true, login_user_fields: 'ssh_username, username, login', login_pass_fields: 'ssh_password, password',
+  tier_field: '', allow_reboot: true, login_user_fields: '', login_pass_fields: '',   // blank = find the login fields on the page automatically
   teams: [['ITO', 'IT Team'], ['LAB', 'Lab Team'], ['QAT', 'QA Team'], ['DEV', 'Development Team'], ['DVO', 'Dev-Ops Team'], ['SNP', 'Support and Service Team'],
     ['PLT', 'Platform Team'], ['SEC', 'Application Security Team'], ['PSE', 'Pre-Sales Engineer Team'], ['NEA', 'Network Engineering Automation Team']].map(([code, label]) => ({ code, label })),
   tiers: [['P', 'Production'], ['S', 'Staging'], ['D', 'Development'], ['T', 'Testing'], ['C', 'Customer-facing'], ['G', 'General Purpose']].map(([code, label]) => ({ code, label })),
@@ -54,7 +54,7 @@ exports.put = async (req, res) => {
   const value = { order: b.order, type_field: typeField, types: (Array.isArray(b.types) ? b.types : []).map((t) => String(t).trim().slice(0, 120)).filter(Boolean).slice(0, 100),
     suggest_pages: slugs(b.suggest_pages), rename_pages: slugs(b.rename_pages) || [], allow_reboot: b.allow_reboot !== false,
     tier_field: /^[a-z][a-z0-9_]{0,40}$/.test(String(b.tier_field || '')) ? String(b.tier_field) : '',
-    login_user_fields: String(b.login_user_fields || DEFAULTS.login_user_fields).trim().slice(0, 200), login_pass_fields: String(b.login_pass_fields || DEFAULTS.login_pass_fields).trim().slice(0, 200),
+    login_user_fields: String(b.login_user_fields || '').trim().slice(0, 200), login_pass_fields: String(b.login_pass_fields || '').trim().slice(0, 200),
     sites, teams: codeList(b.teams, 'Team codes'), tiers: codeList(b.tiers, 'Tier codes') };
   await setSetting('hostname_pattern', value);
   audit(req, 'update', 'hostname_pattern', null, { name: 'Hostname naming pattern' });

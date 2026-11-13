@@ -14,6 +14,16 @@ const JOB_TTL_MS = 60 * 60 * 1000;
 const jobs = new Map();   // in memory: the backend runs as one instance
 const names = (s) => String(s || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 const findField = (fields, wanted, password) => names(wanted).map((n) => fields.find((f) => (f.type === 'password') === password && (String(f.key).toLowerCase() === n || String(f.label || '').toLowerCase() === n))).find(Boolean);
+/** The login fields of a page. Names listed in the settings win; otherwise they are found by their key / label, then by being the only password field. */
+function loginFields(fields, cfg) {
+  const pw = fields.filter((f) => f.type === 'password');
+  const txt = fields.filter((f) => f.type === 'text' || f.type === undefined);
+  const hay = (f) => `${f.key} ${f.label || ''}`.toLowerCase();
+  const pick = (list, ...res) => { for (const re of res) { const hit = list.find((f) => re.test(hay(f))); if (hit) return hit; } return null; };
+  const password = findField(fields, cfg.login_pass_fields, true) || pick(pw, /ssh/, /login|logon/, /os |os_|admin|root|server/, /pass/) || (pw.length === 1 ? pw[0] : pw[0] || null);
+  const user = findField(fields, cfg.login_user_fields, false) || pick(txt, /ssh.*user|user.*ssh/, /login.*(user|name|id)|user.*(name|id)/, /user|username|login|account/, /admin|root/);
+  return { user, password };
+}
 const prune = () => { for (const [k, j] of jobs) if (j.finished_at && Date.now() - j.finished_at > JOB_TTL_MS) jobs.delete(k); };
 
 /** Why this rename cannot be run, or null. */
@@ -22,8 +32,8 @@ function problem(host, os, hostname, user, enc) {
   if (!LABEL.test(hostname)) return `"${hostname}" is not a valid host name (letters, digits and hyphens; it cannot start or end with a hyphen).`;
   if (os === 'windows' && hostname.length > 15) return `"${hostname}" is longer than 15 characters, the Windows computer-name limit.`;
   if (!host) return 'The record has no IP address to connect to.';
-  if (!enc) return 'No password is saved on the record.';
-  if (!user) return 'No SSH username is saved on the record.';
+  if (!enc) return 'No password is saved on the record (no password field was found, or it is empty).';
+  if (!user) return 'No username is saved on the record (no username field was found, or it is empty).';
   return null;
 }
 
@@ -32,7 +42,7 @@ async function request(req, page, rec, opt) {
   const cfg = await getSetting('hostname_pattern', {});
   if (!(cfg.rename_pages || []).includes(page.slug)) return { rename_skipped: 'Renaming hosts is not enabled for this page (Administration > Hostname Naming).' };
   const fields = page.config.fields || [];
-  const uf = findField(fields, cfg.login_user_fields || 'ssh_username, username, login', false); const pf = findField(fields, cfg.login_pass_fields || 'ssh_password, password', true);
+  const { user: uf, password: pf } = loginFields(fields, cfg);
   const username = uf ? String(rec.data[uf.key] || '').trim() : ''; const enc = pf ? rec.secrets[pf.key] : null;
   const os = /windows/i.test(rec.os_type || '') ? 'windows' : (rec.os_type ? 'linux' : null);
   const hostname = String(rec.hostname || '').trim();
