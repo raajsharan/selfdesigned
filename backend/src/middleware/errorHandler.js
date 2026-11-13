@@ -1,7 +1,9 @@
-const prod = () => process.env.NODE_ENV === 'production';
+const prod = () => process.env.NODE_ENV !== 'development';   // only an explicit development run shows error detail
 
 module.exports = (err, req, res, _next) => {
   if (res.headersSent) return;
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON body' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Request body is too large' });
   if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message, details: err.details });
   if (err.code === '23505' && /ip/.test(err.constraint || '')) return res.status(409).json({ error: 'That IP address is already used by another active record' });
   if (err.code === '23505') return res.status(409).json({ error: 'A record with the same unique value already exists' });

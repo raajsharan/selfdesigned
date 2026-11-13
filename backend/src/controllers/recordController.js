@@ -13,6 +13,7 @@ const { ROLE_COLUMNS, promote, roleKeys } = require('../services/pageService');
 const hostRename = require('../services/hostnameRenameService');
 const { unionSql } = require('../utils/inventoryUnion');
 
+const { KEY_RE } = require('../services/pageService');
 const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const fieldsOf = (page) => page.config.fields || [];
 const display = (r) => r.vm_name || r.hostname || r.ip_address || `#${r.id}`;
@@ -169,7 +170,7 @@ function orderBy(page, sort, order) {
   const dir = order === 'asc' ? 'ASC' : 'DESC';
   if (META_SORT[sort]) return `${META_SORT[sort]} ${dir}, r.id DESC`;
   const f = fieldsOf(page).find((x) => x.key === sort && x.type !== 'password');
-  if (!f) return 'r.updated_at DESC, r.id DESC';
+  if (!f || !KEY_RE.test(f.key)) return 'r.updated_at DESC, r.id DESC';
   const expr = f.type === 'number' ? `CASE WHEN r.data->>'${f.key}' ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (r.data->>'${f.key}')::numeric END` : `r.data->>'${f.key}'`;   // key is validated by KEY_RE
   return `${expr} ${dir} NULLS LAST, r.id DESC`;
 }
@@ -214,10 +215,10 @@ exports.create = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const { after, changed } = await db.withTx((c) => updateRecord(c, req.page, req.params.id, req.body.data || {}, req.user));
+  const { before, after, changed } = await db.withTx((c) => updateRecord(c, req.page, req.params.id, req.body.data || {}, req.user));
   audit(req, 'update', `page:${req.page.slug}`, after.id, { name: display(after), changed });
   if (changed.length) teams.notify('asset_updated', { title: `Record updated: ${display(after)}`, status: 'info', facts: [['Page', req.page.title], ['Changed', changed.join(', ')], ['By', req.user.email]] });
-  const rn = req.body.apply_hostname ? await hostRename.request(req, req.page, after, req.body.apply_hostname) : {};
+  const rn = req.body.apply_hostname ? await hostRename.request(req, req.page, after, req.body.apply_hostname, before) : {};
   res.json({ ...sanitize(after, req.page), ...rn });
 };
 
@@ -431,7 +432,7 @@ async function runView(req, maxPageSize = 200) {
   if (q.q) { p.push(`%${String(q.q).replace(/[%_\\]/g, '\\$&')}%`); w.push(`EXISTS (SELECT 1 FROM jsonb_each_text(r.data) e WHERE e.value ILIKE $${p.length})`); }
   const where = w.join(' AND ');
   const total = (await db.query(`SELECT COUNT(*)::int n FROM inventory_records r WHERE ${where}`, p)).rows[0].n;
-  const sortCol = (cfg.columns || []).find((c) => c.id === q.sort && c.keys.length);
+  const sortCol = (cfg.columns || []).find((c) => c.id === q.sort && c.keys.length && c.keys.every((k) => KEY_RE.test(k)));
   const dir = q.order === 'asc' ? 'ASC' : 'DESC';
   const order = sortCol ? `COALESCE(${sortCol.keys.map((k) => `NULLIF(r.data->>'${k}', '')`).join(', ')}) ${dir} NULLS LAST, r.id` : 'r.updated_at DESC, r.id DESC';   // keys validated by KEY_RE
   const { rows } = await db.query(`SELECT r.id, r.page_id, r.data, r.is_decommissioned, r.updated_at FROM inventory_records r WHERE ${where} ORDER BY ${order} LIMIT ${pageSize} OFFSET ${(pageNo - 1) * pageSize}`, p);
@@ -446,7 +447,7 @@ exports.viewFilterOptions = async (req, res) => {
   const ids = srcs.filter((s) => req.user.pages.has(pageKey(s.slug))).map((s) => s.id);
   for (const id of cfg.filters || []) {
     const col = cfg.columns.find((c) => c.id === id); if (!col) continue;
-    const { rows } = await db.query(`SELECT DISTINCT COALESCE(${col.keys.map((k) => `NULLIF(data->>'${k}', '')`).join(', ')}) AS v FROM inventory_records WHERE page_id = ANY($1) AND is_deleted = FALSE ORDER BY 1 LIMIT 300`, [ids]);
+    const { rows } = await db.query(`SELECT DISTINCT COALESCE(${col.keys.filter((k) => KEY_RE.test(k)).map((k) => `NULLIF(data->>'${k}', '')`).join(', ')}) AS v FROM inventory_records WHERE page_id = ANY($1) AND is_deleted = FALSE ORDER BY 1 LIMIT 300`, [ids]);
     out[id] = rows.map((r) => r.v).filter((v) => v !== null);
   }
   res.json(out);

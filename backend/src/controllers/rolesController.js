@@ -2,9 +2,13 @@ const db = require('../config/db');
 const { BUILTIN_ROLES, EDITABLE_BUILTIN } = require('../config/pages');
 const { allPageKeys } = require('../services/pageService');
 const { audit } = require('../services/auditService');
-const { bad, notFound, conflict } = require('../utils/httpError');
+const { isAdminRole } = require('../middleware/auth');
+const { bad, notFound, conflict, forbidden } = require('../utils/httpError');
 
 const cleanPages = (arr, valid) => [...new Set((arr || []).filter((p) => valid.has(p)))];
+/** A delegate (a custom role that holds the Roles page) can only hand out pages they have themselves, and cannot edit the role they hold. */
+const limitTo = (req, pages) => (isAdminRole(req.user) ? pages : pages.filter((p) => req.user.pages.has(p)));
+const assertNotOwnRole = (req, name) => { if (!isAdminRole(req.user) && name === req.user.role) throw forbidden('You cannot change your own role'); };
 
 exports.list = async (req, res) => {
   const { keys, dynamic } = await allPageKeys();
@@ -29,16 +33,18 @@ exports.create = async (req, res) => {
   if (BUILTIN_ROLES[name]) throw conflict('That name is reserved for a built-in role');
   const { rows } = await db.query(
     'INSERT INTO roles (name, description, pages, can_write) VALUES ($1,$2,$3,$4) RETURNING *',
-    [name, description || null, JSON.stringify(cleanPages(pages, valid)), !!can_write]);
+    [name, description || null, JSON.stringify(limitTo(req, cleanPages(pages, valid))), !!can_write]);
   audit(req, 'create', 'role', rows[0].id, { name });
   res.status(201).json(rows[0]);
 };
 
 exports.update = async (req, res) => {
   const valid = new Set((await allPageKeys()).keys);
+  const { rows: own } = await db.query('SELECT name FROM roles WHERE id = $1', [req.params.id]);
+  if (own[0]) assertNotOwnRole(req, own[0].name);
   const { rows } = await db.query(
     'UPDATE roles SET description = $1, pages = $2, can_write = $3 WHERE id = $4 RETURNING *',
-    [req.body.description || null, JSON.stringify(cleanPages(req.body.pages, valid)), !!req.body.can_write, req.params.id]);
+    [req.body.description || null, JSON.stringify(limitTo(req, cleanPages(req.body.pages, valid))), !!req.body.can_write, req.params.id]);
   if (!rows[0]) throw notFound('Role not found');
   audit(req, 'update', 'role', rows[0].id, { name: rows[0].name });
   res.json(rows[0]);
@@ -48,11 +54,12 @@ exports.update = async (req, res) => {
 exports.updateBuiltin = async (req, res) => {
   const { name } = req.params;
   if (!EDITABLE_BUILTIN.has(name)) throw bad('This built-in role cannot be changed');
+  assertNotOwnRole(req, name);
   const valid = new Set((await allPageKeys()).keys);
   await db.query(
     `INSERT INTO builtin_role_overrides (name, description, pages, can_write) VALUES ($1,$2,$3,$4)
      ON CONFLICT (name) DO UPDATE SET description = $2, pages = $3, can_write = $4, updated_at = now()`,
-    [name, req.body.description || null, JSON.stringify(cleanPages(req.body.pages, valid)), !!req.body.can_write]);
+    [name, req.body.description || null, JSON.stringify(limitTo(req, cleanPages(req.body.pages, valid))), !!req.body.can_write]);
   audit(req, 'update', 'role', null, { name, builtin: true });
   res.json({ ok: true });
 };

@@ -15,6 +15,7 @@ function readConfig() {
   return { host: e.DB_HOST || 'localhost', port: parseInt(e.DB_PORT, 10) || 5432, user: e.DB_USER || 'postgres', password: e.DB_PASSWORD || '', database: e.DB_NAME || 'infrastructure_inventory' };
 }
 const dbConfig = readConfig();
+if (!dbConfig.password && process.env.NODE_ENV === 'production') { console.error('[db] DB_PASSWORD is required in production'); process.exit(1); }
 if (!dbConfig.password) console.warn('[db] DB_PASSWORD is empty - this only works if PostgreSQL trusts local connections');
 
 const pool = new Pool({ ...dbConfig, max: 20 });

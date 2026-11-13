@@ -288,3 +288,15 @@ CREATE TABLE IF NOT EXISTS field_library (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Sign-in tokens issued before this moment are rejected (set on password change / reset, deactivation).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_valid_after TIMESTAMPTZ;
+
+-- The audit trail is append-only: rows cannot be changed or deleted, even by the application's own database account.
+CREATE OR REPLACE FUNCTION audit_logs_guard() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'audit_logs is append-only';
+END $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_audit_logs_guard ON audit_logs;
+CREATE TRIGGER trg_audit_logs_guard BEFORE UPDATE OR DELETE ON audit_logs
+  FOR EACH ROW EXECUTE FUNCTION audit_logs_guard();

@@ -38,9 +38,11 @@ const authenticate = asyncHandler(async (req, res, next) => {
 
   // Always re-read the user so deactivation / role / flag changes apply immediately.
   const { rows } = await db.query(
-    'SELECT id, email, full_name, role, is_active, can_view_passwords, page_overrides FROM users WHERE id = $1', [payload.sub]);
+    'SELECT id, email, full_name, role, is_active, can_view_passwords, page_overrides, tokens_valid_after FROM users WHERE id = $1', [payload.sub]);
   const u = rows[0];
   if (!u || !u.is_active) return res.status(401).json({ error: 'Account unavailable' });
+  // A password change / reset or deactivation signs out every token issued before it.
+  if (u.tokens_valid_after && (payload.iat || 0) < Math.floor(new Date(u.tokens_valid_after).getTime() / 1000)) return res.status(401).json({ error: 'Session ended. Please sign in again.' });
   const access = await resolveAccess(u);
   req.user = { ...u, pages: access.pages, canWrite: access.write, isSuper: u.role === 'superadmin' };
   next();
@@ -67,7 +69,8 @@ const requirePasswordAccess = asyncHandler(async (req, res, next) => {
   next();
 });
 
+const isAdminRole = (u) => !!u && (u.role === 'superadmin' || u.role === 'admin');
 const signToken = (user) =>
   jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: process.env.JWT_EXPIRES_IN || '12h' });
 
-module.exports = { authenticate, authorize, requirePageAccess, requirePasswordAccess, signToken, resolveAccess };
+module.exports = { isAdminRole, authenticate, authorize, requirePageAccess, requirePasswordAccess, signToken, resolveAccess };

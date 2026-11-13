@@ -56,6 +56,9 @@ async function runPlaybook({ playbook, marker, asset, vars, secrets = [] }) {
   const scrub = (t) => hide.reduce((s, x) => s.split(x).join('***'), String(t || ''));
   try {
     if (!/^[A-Za-z0-9.:_-]{1,253}$/.test(asset.host)) throw bad('The asset address contains unsupported characters');
+    // Extra-vars are templated by Ansible: a username or password holding {{ }} / {% %} / {# #} would be evaluated as code.
+    if (!/^[A-Za-z0-9._@\\ -]{1,64}$/.test(String(asset.username || '')) || String(asset.username).startsWith('-')) throw bad('The saved username has characters that cannot be used for an SSH login (letters, digits and . _ @ \\ - only)');
+    if (/\{\{|\{%|\{#/.test(`${asset.username}${asset.password}`)) throw bad('The saved login contains "{{", "{%" or "{#", which Ansible would treat as a template. Change the password, or log in to this host another way.');
     const win = asset.os === 'windows';
     const sshArgs = `-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${KNOWN_HOSTS}`;
     const conn = win

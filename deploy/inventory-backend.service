@@ -9,6 +9,8 @@ User=inventory
 Group=inventory
 WorkingDirectory=/opt/inventory/backend
 EnvironmentFile=/opt/inventory/backend/.env
+Environment=NODE_ENV=production
+UMask=0077
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { App, Avatar, Button, Form, Input, Switch } from 'antd';
 import { CameraOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import api, { errMsg } from '../api/client';
+import api, { errMsg, TOKEN_KEY } from '../api/client';
 
 const SECTIONS = [
   { key: 'general', label: 'General' },
@@ -56,6 +56,8 @@ function General() {
           <Form.Item name="full_name" label="Name"><Input placeholder="Type Here" maxLength={255} /></Form.Item>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email', message: 'Enter a valid email' }]}><Input placeholder="Type Here" maxLength={255} /></Form.Item>
           <Form.Item name="company" label="Company"><Input placeholder="Type Here" maxLength={255} /></Form.Item>
+          <Form.Item noStyle shouldUpdate={(a, b) => a.email !== b.email}>{({ getFieldValue }) => String(getFieldValue('email') || '').toLowerCase() !== String(user.email).toLowerCase() && (
+            <Form.Item name="current_password" label="Current password (needed to change your email)" rules={[{ required: true, message: 'Enter your current password' }]}><Input.Password autoComplete="current-password" /></Form.Item>)}</Form.Item>
         </div>
         <div className="prof-actions">
           <Button type="primary" htmlType="submit" loading={saving} shape="round" size="large">Save Changes</Button>
@@ -80,7 +82,7 @@ function Password() {
   const { message } = App.useApp(); const [form] = Form.useForm(); const [saving, setSaving] = useState(false);
   const save = async (v) => {
     setSaving(true);
-    try { await api.post('/auth/me/change-password', { current_password: v.current, new_password: v.next }); message.success('Password changed'); form.resetFields(); }
+    try { const r = await api.post('/auth/me/change-password', { current_password: v.current, new_password: v.next }); if (r.data.token) localStorage.setItem(TOKEN_KEY, r.data.token); message.success('Password changed'); form.resetFields(); }
     catch (err) { message.error(errMsg(err)); } finally { setSaving(false); }
   };
   return (

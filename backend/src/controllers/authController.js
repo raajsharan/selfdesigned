@@ -36,7 +36,7 @@ exports.login = async (req, res) => {
   const user = rows[0];
   const ok = await bcrypt.compare(req.body.password, user ? user.password_hash : DUMMY_HASH);
   if (!user || !ok || !user.is_active) {
-    audit(null, 'login_failed', 'user', null, { email });
+    audit(req, 'login_failed', 'user', null, { email, reason: !user ? 'unknown_user' : !user.is_active ? 'inactive' : 'bad_password' });   // req carries the source IP
     return res.status(401).json({ error: 'Invalid email or password' });
   }
   await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
@@ -57,7 +57,11 @@ exports.updateProfile = async (req, res) => {
   if (b.email !== undefined) {
     const email = text(b.email, 255).toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw bad('Enter a valid email address');
-    add('email', email);
+    if (email !== String(req.user.email).toLowerCase()) {   // the email is the login name: changing it needs the current password
+      const { rows } = await db.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+      if (!b.current_password || !(await bcrypt.compare(String(b.current_password), rows[0].password_hash))) throw bad('Enter your current password to change your email address');
+      add('email', email);
+    }
   }
   if (b.username !== undefined) {
     const u = text(b.username, 64);
@@ -92,9 +96,9 @@ exports.changePassword =async (req, res) => {
   if (!STRONG.test(new_password)) throw bad(PASSWORD_RULE);
   const { rows } = await db.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
   if (!(await bcrypt.compare(current_password, rows[0].password_hash))) throw bad('Current password is incorrect');
-  await db.query('UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2', [await bcrypt.hash(new_password, 12), req.user.id]);
+  await db.query('UPDATE users SET password_hash = $1, tokens_valid_after = now(), updated_at = now() WHERE id = $2', [await bcrypt.hash(new_password, 12), req.user.id]);
   audit(req, 'change_password', 'user', req.user.id);
-  res.json({ ok: true });
+  res.json({ ok: true, token: signToken(req.user) });   // every other session is signed out; this one continues on a fresh token
 };
 
 exports.PASSWORD_RULE = PASSWORD_RULE;

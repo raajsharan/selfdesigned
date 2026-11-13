@@ -18,22 +18,31 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || process.env
   console.error('JWT_SECRET must be set to at least 32 characters (openssl rand -hex 32)'); process.exit(1);
 }
 try { assertKey(); } catch (e) { console.error(e.message); process.exit(1); }
+if (isProd) {   // refuse dummy secrets in production
+  const weak = (v) => new Set(String(v)).size < 8 || /change.?me|secret|password|example|your_/i.test(v);
+  if (weak(process.env.JWT_SECRET)) { console.error('JWT_SECRET looks like a placeholder or is too repetitive: generate one with openssl rand -hex 32'); process.exit(1); }
+  if (new Set(process.env.ENCRYPTION_KEY).size < 8) { console.error('ENCRYPTION_KEY looks like a placeholder: generate one with openssl rand -hex 32'); process.exit(1); }
+}
 
 const app = express();
 if (process.env.TRUST_PROXY && process.env.TRUST_PROXY !== '0') app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
 app.disable('x-powered-by');
 
 // Swagger UI needs inline scripts, so it gets its own relaxed CSP and is mounted before the global one.
-app.use('/api/docs', helmet({ contentSecurityPolicy: false }), swaggerUi.serve, swaggerUi.setup(require('./src/config/swagger')));
+// It lists every endpoint, so it is only mounted outside production unless ENABLE_API_DOCS=1.
+if (!isProd || process.env.ENABLE_API_DOCS === '1') app.use('/api/docs', helmet({ contentSecurityPolicy: false }), swaggerUi.serve, swaggerUi.setup(require('./src/config/swagger')));
 
 app.use(helmet({
   contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"], fontSrc: ["'self'", 'data:'], objectSrc: ["'none'"], frameAncestors: ["'none'"] } },
 }));
 
+app.use((req, res, next) => { res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'); next(); });
+
 const origins = (process.env.CORS_ORIGIN || 'http://localhost:4000,http://localhost:5173').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({ origin: (o, cb) => (!o || origins.includes(o) ? cb(null, true) : cb(null, false)), credentials: false }));
 app.use(express.json({ limit: '1mb' }));
 
+app.use('/api', require('./src/middleware/limits').api);
 app.use('/api', require('./src/routes'));
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

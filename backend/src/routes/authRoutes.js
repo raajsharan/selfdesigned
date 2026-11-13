@@ -9,7 +9,10 @@ const asyncHandler = require('../utils/asyncHandler');
 const limiter = (max) => rateLimit({ windowMs: 15 * 60 * 1000, max, standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many attempts. Please wait and try again.' } });
 
-router.post('/login', limiter(Number(process.env.RATE_LIMIT_LOGIN) || 20), body('email').isEmail(), body('password').isString().notEmpty().isLength({ max: 200 }), validate, asyncHandler(c.login));
+// Failed attempts per account (email), so one account cannot be guessed at from many addresses, and a shared proxy address is not locked out.
+const perAccount = rateLimit({ windowMs: 15 * 60 * 1000, max: Number(process.env.RATE_LIMIT_LOGIN_ACCOUNT) || 10, standardHeaders: true, legacyHeaders: false, skipSuccessfulRequests: true,
+  keyGenerator: (req) => `acct:${String(req.body && req.body.email).toLowerCase().trim().slice(0, 255)}`, message: { error: 'Too many attempts. Please wait and try again.' } });
+router.post('/login', limiter(Number(process.env.RATE_LIMIT_LOGIN) || 20), perAccount, body('email').isEmail(), body('password').isString().notEmpty().isLength({ max: 200 }), validate, asyncHandler(c.login));
 router.get('/me', authenticate, asyncHandler(c.me));
 router.put('/me/profile', authenticate, limiter(60), validate, asyncHandler(c.updateProfile));
 router.post('/me/change-password', authenticate, limiter(5),

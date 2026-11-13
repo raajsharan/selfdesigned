@@ -6,13 +6,17 @@ const validate = require('../middleware/validate');
 const h = require('../utils/asyncHandler');
 
 const id = param('id').isInt({ min: 1 });
+// A plain host name or IPv4 address: no scheme, path, credentials or port in the host; never loopback / link-local (metadata) addresses.
+const HOST_RE = /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/;
+const blockedHost = (h) => /^(localhost|0\.0\.0\.0|127\.|169\.254\.)/i.test(h);
+const hostRule = body('host').optional().isString().trim().isLength({ min: 1, max: 255 }).custom((h) => HOST_RE.test(h) && !blockedHost(h)).withMessage('Enter a host name or IP address only (no http://, port or path; not localhost or a link-local address)');
 
 module.exports = (typeKey) => {
   const c = build(typeKey);
   const r = express.Router();
   r.use(authenticate, requirePageAccess(typeKey));
 
-  const serverRules = [body('name').optional().isString().trim().isLength({ min: 1, max: 128 }), body('host').optional().isString().trim().isLength({ min: 1, max: 255 }),
+  const serverRules = [body('name').optional().isString().trim().isLength({ min: 1, max: 128 }), hostRule, body('port').optional({ nullable: true }).isInt({ min: 1, max: 65535 }),
     body('verify_ssl').optional().isBoolean(), body('enabled').optional().isBoolean()];
   r.get('/servers', h(c.servers.list));
   r.post('/servers', body('name').notEmpty(), body('host').notEmpty(), ...(typeKey === 'vmware' ? [body('username').notEmpty()] : [body('token_id').notEmpty()]), ...serverRules, validate, h(c.servers.create));

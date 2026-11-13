@@ -8,7 +8,7 @@ import { usePages } from '../../context/PagesContext';
 import { iconFor } from '../pageIcons';
 import { useBranding } from '../../context/BrandingContext';
 import { orderedGroups, ALL_ITEMS, rankFrom } from '../../nav';
-import api, { errMsg } from '../../api/client';
+import api, { errMsg, TOKEN_KEY } from '../../api/client';
 
 const { Sider, Header, Content } = Layout;
 
@@ -34,7 +34,7 @@ function ChangePassword({ open, onClose }) {
   const { message } = App.useApp(); const [form] = Form.useForm();
   const submit = async () => {
     const v = await form.validateFields();
-    try { await api.post('/auth/me/change-password', { current_password: v.current, new_password: v.next }); message.success('Password changed'); form.resetFields(); onClose(); }
+    try { const r = await api.post('/auth/me/change-password', { current_password: v.current, new_password: v.next }); if (r.data.token) localStorage.setItem(TOKEN_KEY, r.data.token); message.success('Password changed'); form.resetFields(); onClose(); }
     catch (e) { message.error(errMsg(e)); }
   };
   return (

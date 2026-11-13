@@ -4,6 +4,7 @@ const { BUILTIN_ROLES } = require('../config/pages');
 const { allPageKeys } = require('../services/pageService');
 const { STRONG, PASSWORD_RULE } = require('./authController');
 const { audit } = require('../services/auditService');
+const { isAdminRole } = require('../middleware/auth');
 const { bad, notFound, forbidden } = require('../utils/httpError');
 
 const PUBLIC = 'id, email, full_name, role, is_active, can_view_passwords, page_overrides, last_login_at, created_at';
@@ -12,8 +13,12 @@ const PUBLIC = 'id, email, full_name, role, is_active, can_view_passwords, page_
 // (not even by itself). It is created at startup from SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD.
 const isHidden = (u) => !u || u.role === 'superadmin';
 
+/** Only an Admin may manage an Admin: a custom role that was given the Users page must not be able to take over or create admin accounts. */
+const assertCanManage = (req, target) => { if (target && target.role === 'admin' && !isAdminRole(req.user)) throw forbidden('Only an administrator can change an administrator account'); };
+
 async function assertRoleAssignable(req, role) {
   if (role === 'superadmin') throw forbidden('The superadmin role cannot be assigned');
+  if (role === 'admin' && !isAdminRole(req.user)) throw forbidden('Only an administrator can assign the Admin role');
   if (BUILTIN_ROLES[role]) return;
   const { rows } = await db.query('SELECT 1 FROM roles WHERE name = $1', [role]);
   if (!rows[0]) throw bad(`Unknown role "${role}"`);
@@ -39,6 +44,7 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const { rows: cur } = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
   if (isHidden(cur[0])) throw notFound('User not found');
+  assertCanManage(req, cur[0]);
   const sets = []; const vals = [];
   const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
   if (req.body.full_name !== undefined) add('full_name', req.body.full_name);
@@ -50,10 +56,12 @@ exports.update = async (req, res) => {
   if (req.body.is_active !== undefined) {
     if (cur[0].id === req.user.id && !req.body.is_active) throw bad('You cannot deactivate your own account');
     add('is_active', !!req.body.is_active);
+    if (!req.body.is_active) add('tokens_valid_after', new Date());
   }
   if (req.body.password) {
     if (!STRONG.test(req.body.password)) throw bad(PASSWORD_RULE);
     add('password_hash', await bcrypt.hash(req.body.password, 12));
+    add('tokens_valid_after', new Date());   // the old sessions of that user end
   }
   if (!sets.length) {
     const { rows: same } = await db.query(`SELECT ${PUBLIC} FROM users WHERE id = $1`, [req.params.id]);
@@ -68,6 +76,7 @@ exports.update = async (req, res) => {
 exports.remove = async (req, res) => {
   const { rows } = await db.query('SELECT id, role, email FROM users WHERE id = $1', [req.params.id]);
   if (isHidden(rows[0])) throw notFound('User not found');
+  assertCanManage(req, rows[0]);
   if (rows[0].id === req.user.id) throw bad('You cannot delete your own account');
   await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
   audit(req, 'delete', 'user', rows[0].id, { email: rows[0].email });
@@ -86,10 +95,20 @@ exports.pageControlList = async (req, res) => {
 exports.pageControlUpdate = async (req, res) => {
   const { rows: cur } = await db.query('SELECT id, role, email FROM users WHERE id = $1', [req.params.id]);
   if (isHidden(cur[0])) throw notFound('User not found');
+  assertCanManage(req, cur[0]);
+  const admin = isAdminRole(req.user);
+  if (!admin && cur[0].id === req.user.id) throw forbidden('You cannot change your own page access');
   const overrides = {}; const valid = new Set((await allPageKeys()).keys);
-  for (const [k, v] of Object.entries(req.body.page_overrides || {})) if (valid.has(k) && typeof v === 'boolean') overrides[k] = v;
+  for (const [k, v] of Object.entries(req.body.page_overrides || {})) {
+    if (!valid.has(k) || typeof v !== 'boolean') continue;
+    if (!admin && v === true && !req.user.pages.has(k)) continue;   // a delegate cannot grant a page they do not have themselves
+    overrides[k] = v;
+  }
+  // Same rule for viewing stored passwords: only someone who may view them can hand that on.
+  const { rows: pw } = await db.query('SELECT can_view_passwords FROM users WHERE id = $1', [req.params.id]);
+  const canView = admin || req.user.can_view_passwords ? !!req.body.can_view_passwords : pw[0].can_view_passwords;
   await db.query('UPDATE users SET page_overrides = $1, can_view_passwords = $2, updated_at = now() WHERE id = $3',
-    [JSON.stringify(overrides), !!req.body.can_view_passwords, req.params.id]);
-  audit(req, 'update_page_control', 'user', cur[0].id, { email: cur[0].email, overrides, can_view_passwords: !!req.body.can_view_passwords });
+    [JSON.stringify(overrides), canView, req.params.id]);
+  audit(req, 'update_page_control', 'user', cur[0].id, { email: cur[0].email, overrides, can_view_passwords: canView });
   res.json({ ok: true });
 };

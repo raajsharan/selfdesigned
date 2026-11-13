@@ -37,12 +37,13 @@ async function record(kind, file, size, status, error, by) {
 }
 
 async function createPgDump(by) {
-  fs.mkdirSync(dir(), { recursive: true });
+  fs.mkdirSync(dir(), { recursive: true, mode: 0o700 });
   const file = path.join(dir(), `pgdump-${new Date().toISOString().replace(/[:.]/g, '-')}.dump`);
   return new Promise((resolve) => {
     // Password travels in the environment, not argv, so it is not visible in `ps`.
     execFile(process.env.PG_DUMP_PATH || 'pg_dump', ['-F', 'c', '-f', file], { env: pgEnv(), timeout: 10 * 60000 }, async (err) => {
       if (err) return resolve(await record('pg_dump', file, null, 'failed', String(err.message).slice(0, 500), by));
+      try { fs.chmodSync(file, 0o600); } catch { /* not supported on this file system */ }   // the dump holds password hashes and ciphertext
       resolve(await record('pg_dump', file, fs.statSync(file).size, 'ok', null, by));
     });
   });
@@ -50,9 +51,9 @@ async function createPgDump(by) {
 
 async function createCsvSet(by) {
   const out = path.join(dir(), `csv-${new Date().toISOString().replace(/[:.]/g, '-')}`);
-  fs.mkdirSync(out, { recursive: true });
+  fs.mkdirSync(out, { recursive: true, mode: 0o700 });
   let size = 0;
-  for (const t of CSV_TABLES) { const csv = await tableCsv(t); fs.writeFileSync(path.join(out, `${t}.csv`), csv); size += Buffer.byteLength(csv); }
+  for (const t of CSV_TABLES) { const csv = await tableCsv(t); fs.writeFileSync(path.join(out, `${t}.csv`), csv, { mode: 0o600 }); size += Buffer.byteLength(csv); }
   return record('csv', out, size, 'ok', null, by);
 }
 
@@ -71,8 +72,19 @@ async function parseCsv(buffer) {
 }
 
 /** Insert rows that do not exist yet (by id); existing rows are never overwritten. */
+const KEY_OK = /^[a-z][a-z0-9_]{0,40}$/; const SLUG_OK = /^[a-z][a-z0-9-]{1,47}$/;
+/** A restored page's slug and field keys are used to build SQL, so they must pass the same rules as the Page Designer enforces. */
+function assertSafePage(row) {
+  if (row.slug !== null && row.slug !== undefined && !SLUG_OK.test(String(row.slug))) throw bad(`Restore refused: "${String(row.slug).slice(0, 40)}" is not a valid page slug`);
+  if (row.config === null || row.config === undefined) return;
+  let cfg; try { cfg = typeof row.config === 'string' ? JSON.parse(row.config) : row.config; } catch { throw bad('Restore refused: a page has an unreadable layout (config)'); }
+  const keys = [...(cfg.fields || []).map((f) => f && f.key), ...((cfg.table && cfg.table.columns) || []).flatMap((c) => (c && c.keys) || (c && c.key ? [c.key] : [])), ...((cfg.columns) || []).flatMap((c) => (c && c.keys) || [])];
+  for (const k of keys) if (typeof k === 'string' && !k.startsWith('_') && !KEY_OK.test(k)) throw bad(`Restore refused: "${k.slice(0, 40)}" is not a valid field key`);
+}
+
 async function restoreTable(table, rows) {
   if (!RESTORABLE.includes(table)) throw bad(`Table "${table}" cannot be restored from CSV`);
+  if (table === 'inventory_pages') rows.forEach(assertSafePage);
   const valid = new Set(await columns(table));
   let inserted = 0;
   await db.withTx(async (c) => {

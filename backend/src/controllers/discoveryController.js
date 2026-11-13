@@ -61,6 +61,11 @@ module.exports = function buildDiscoveryController(typeKey) {
       res.status(201).json(secretOf(rows[0]));
     },
     update: async (req, res) => {
+      // The stored password / token must not be redirected: changing where it is sent needs the secret to be typed again.
+      const { rows: now } = await db.query(`SELECT * FROM ${T.serversTable} WHERE id = $1`, [req.params.id]);
+      if (!now[0]) throw notFound('Server not found');
+      const moved = ['host', 'port', 'username', 'token_id'].some((c) => req.body[c] !== undefined && String(req.body[c]) !== String(now[0][c] ?? ''));
+      if (moved && !req.body[T.secretField]) throw bad(`You changed where this server is reached. Enter the ${T.secretField === 'password' ? 'password' : 'token secret'} again to save it.`);
       const sets = []; const v = [];
       for (const c of T.serverCols) if (req.body[c] !== undefined) { v.push(req.body[c]); sets.push(`${c} = $${v.length}`); }
       if (req.body[T.secretField]) { v.push(encrypt(req.body[T.secretField])); sets.push(`${T.secretCol} = $${v.length}`); }
