@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import api, { errMsg } from '../../../api/client';
 import { useAuth } from '../../../context/AuthContext';
 import { Draggable, DropZone, move } from '../../../components/dnd';
-import { keyFrom, rewriteKey, uid } from './util';
+import { dropdownFields, keyFrom, rewriteKey, uid } from './util';
 
 export const TYPE_LABEL = { mac: 'MAC address (AA:BB:CC:DD:EE:FF)', text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', ip: 'IP address (x.x.x.x)', password: 'Password (encrypted)' };
 
@@ -65,13 +65,13 @@ export function FieldBody({ f, i, config, set, meta, categories, locked, rename 
 function LibraryPicker({ open, onClose, config, setConfig, meta }) {
   const { message } = App.useApp(); const { has } = useAuth();
   const [rows, setRows] = useState(null); const [sel, setSel] = useState([]);
-  useEffect(() => { if (open) { setSel([]); api.get('/field-library').then((r) => setRows(r.data.fields)).catch((e) => { message.error(errMsg(e)); setRows([]); }); } }, [open, message]);
+  useEffect(() => { if (open) { setSel([]); Promise.all([api.get('/field-library'), api.get('/dropdowns')]).then(([l, d]) => setRows([...l.data.fields, ...dropdownFields(Object.keys(d.data).filter((k) => !k.startsWith('$')), l.data.fields)])).catch((e) => { message.error(errMsg(e)); setRows([]); }); } }, [open, message]);
   const have = new Set(config.fields.map((f) => f.key));
   const add = () => {
     setConfig((c) => {
       const taken = new Set(c.fields.map((f) => f.key)); const roles = new Set(c.fields.filter((f) => f.role).map((f) => f.role)); const added = [];
       for (const id of sel) {
-        const { id: _i, key, ...def } = rows.find((r) => r.id === id);   // eslint-disable-line no-unused-vars
+        const { id: _i, key, fromDropdown: _d, ...def } = rows.find((r) => r.id === id);   // eslint-disable-line no-unused-vars
         const k = taken.has(key) ? keyFrom(key, taken) : key; taken.add(k);
         if (def.role && roles.has(def.role)) delete def.role; else if (def.role) roles.add(def.role);
         added.push({ ...def, key: k, _id: uid() });
@@ -87,7 +87,7 @@ function LibraryPicker({ open, onClose, config, setConfig, meta }) {
         rowSelection={{ selectedRowKeys: sel, onChange: setSel }}
         columns={[{ title: 'Field', render: (_, r) => <><b>{r.label}</b> <span className="mono" style={{ color: 'var(--muted-2)' }}>{r.key}</span></> },
           { title: 'Type', dataIndex: 'type', render: (t) => TYPE_LABEL[t] || t },
-          { title: '', render: (_, r) => <>{r.role && <Tag color="blue">{meta.roles.find((x) => x.key === r.role)?.label}</Tag>}{r.required && <Tag color="red">required</Tag>}{have.has(r.key) && <Tag>key already on page</Tag>}</> }]} />
+          { title: '', render: (_, r) => <>{r.role && <Tag color="blue">{meta.roles.find((x) => x.key === r.role)?.label}</Tag>}{r.fromDropdown && <Tag color="green">Dropdown Master list</Tag>}{r.required && <Tag color="red">required</Tag>}{have.has(r.key) && <Tag>key already on page</Tag>}</> }]} />
       <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12 }}>Fields are copied: changing the library later does not change this page.</div>
     </Modal>
   );

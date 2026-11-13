@@ -4,7 +4,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import api, { errMsg } from '../../api/client';
 import PageHeader from '../../components/PageHeader';
 import { FieldBody, TYPE_LABEL } from './Designer/FieldsTab';
-import { stripUi } from './Designer/util';
+import { dropdownFields, stripUi } from './Designer/util';
 
 const BLANK = { key: 'new_field', label: 'New field', type: 'text', _auto: true };
 
@@ -31,15 +31,15 @@ export default function FieldLibrary() {
   return (
     <div className="page">
       <PageHeader title="Field Library" sub="Create fields once, then add them to any page from the Page Designer." />
-      <Alert type="info" showIcon style={{ marginBottom: 12 }} message="Fields are copied into a page" description="Editing or deleting a library field never changes pages that already use it." />
+      <Alert type="info" showIcon style={{ marginBottom: 12 }} message="Fields are copied into a page" description="Editing or deleting a library field never changes pages that already use it. Every list in Dropdown Master also appears here automatically as a ready-made choice-list field." />
       <div className="toolbar"><Button type="primary" icon={<PlusOutlined />} onClick={() => open(null)}>Add field</Button></div>
-      <Table size="middle" rowKey="id" loading={rows === null} dataSource={rows || []} pagination={false}
+      <Table size="middle" rowKey="id" loading={rows === null} dataSource={rows === null ? [] : [...rows, ...dropdownFields(cats, rows)]} pagination={false}
         columns={[
           { title: 'Label', dataIndex: 'label', render: (v) => <b>{v}</b> },
           { title: 'Key', dataIndex: 'key', render: (v) => <span className="mono">{v}</span> },
           { title: 'Type', dataIndex: 'type', render: (t) => TYPE_LABEL[t] || t },
-          { title: 'Settings', render: (_, r) => <>{r.role && <Tag color="blue">{meta.roles.find((x) => x.key === r.role)?.label}</Tag>}{r.required && <Tag color="red">required</Tag>}{r.unique && <Tag>unique</Tag>}</> },
-          { title: '', width: 90, render: (_, r) => <Space size={2}><Button type="text" size="small" icon={<EditOutlined />} onClick={() => open(r)} aria-label="Edit" />
+          { title: 'Settings', render: (_, r) => <>{r.role && <Tag color="blue">{meta.roles.find((x) => x.key === r.role)?.label}</Tag>}{r.optionsCategory && <Tag>list: {r.optionsCategory}</Tag>}{r.required && <Tag color="red">required</Tag>}{r.unique && <Tag>unique</Tag>}</> },
+          { title: '', width: 90, render: (_, r) => r.fromDropdown ? <Tag color="green">Dropdown list</Tag> : <Space size={2}><Button type="text" size="small" icon={<EditOutlined />} onClick={() => open(r)} aria-label="Edit" />
             <Popconfirm title={`Remove “${r.label}” from the library?`} okButtonProps={{ danger: true }} onConfirm={() => remove(r)}><Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label="Delete" /></Popconfirm></Space> },
         ]} />
       <Modal open={!!draft} title={editId ? 'Edit library field' : 'New library field'} onCancel={() => setDraft(null)} onOk={save} confirmLoading={saving} okText="Save" width={640} destroyOnClose>

@@ -29,3 +29,11 @@ export function rewriteKey(config, oldKey, newKey) {
   }
   return c;
 }
+
+const DD_ROLE = { server_status: 'status', os_type: 'os', department: 'department', location: 'location', patching_type: 'patching_type' };
+const titleOf = (c) => c.replace(/_/g, ' ').replace(/^./, (m) => m.toUpperCase());
+/** Every Dropdown Master list as a ready-made choice-list field (always current: nothing is stored in the library). Lists a library field already uses are skipped. */
+export const dropdownFields = (cats, libFields = []) => {
+  const used = new Set(libFields.filter((f) => f.optionsCategory).map((f) => f.optionsCategory));
+  return cats.filter((c) => !used.has(c)).sort().map((c) => ({ id: `dd:${c}`, fromDropdown: true, key: c, label: titleOf(c), type: 'select', optionsCategory: c, ...(DD_ROLE[c] ? { role: DD_ROLE[c] } : {}) }));
+};
