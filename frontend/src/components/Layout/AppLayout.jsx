@@ -92,16 +92,22 @@ export default function AppLayout() {
         onDragEnd={() => { setDrag(null); setOver(null); }} onDrop={() => { drop(s.id, i.key); setDrag(null); setOver(null); }}>{i.label}</span>
       : i.label };
   };
-  const items = sections.map((s) => ({ key: `g-${s.id}`, icon: <s.icon />, label: s.id, children: s.items.filter((i) => isSuper || i.key !== REARRANGE).map((i) => entry(s, i)) }));
+  // The first group (Dashboard, Decommissioned, Recycle Bin, Global Search) is shown as plain top-level entries, not as a collapsible section.
+  const flatId = groups[0]?.group;
+  const items = sections.flatMap((s) => {
+    const kids = s.items.filter((i) => isSuper || i.key !== REARRANGE).map((i) => entry(s, i));
+    return s.id === flatId ? kids : [{ key: `g-${s.id}`, icon: <s.icon />, label: s.id, children: kids }];
+  });
   const activeId = sections.find((s) => s.items.some((i) => i.key === selKey))?.id;
-  useEffect(() => { if (activeId) setOpenKeys((k) => (k.includes(`g-${activeId}`) ? k : [...k, `g-${activeId}`])); }, [activeId]);   // landing on a page opens its section
+  useEffect(() => { if (activeId && activeId !== flatId) setOpenKeys([`g-${activeId}`]); }, [activeId, flatId]);   // landing on a page opens its section (and closes the others)
 
   return (
     <Layout style={{ minHeight: '100%' }}>
       <Sider width={248} collapsible collapsed={collapsed} trigger={null} breakpoint="lg" onBreakpoint={setCollapsed} style={{ overflow: 'auto', height: '100vh', position: 'sticky', top: 0 }}>
         <div className="sider-logo">{logo_data_url ? <img src={logo_data_url} alt="" /> : null}{!collapsed && <span>{app_name}</span>}</div>
         <Menu theme="dark" mode="inline" selectedKeys={selKey ? [selKey] : []} items={items}
-          openKeys={collapsed ? [] : editing ? sections.map((x) => `g-${x.id}`) : openKeys} onOpenChange={setOpenKeys}
+          openKeys={collapsed ? [] : editing ? sections.filter((x) => x.id !== flatId).map((x) => `g-${x.id}`) : openKeys}
+          onOpenChange={(ks) => setOpenKeys(ks.slice(-1))}   /* one section open at a time */
           onClick={({ key }) => { if (key === 'admin-nav-order') return setEditing(!editing); if (editing) return; if (key.startsWith('page:')) return nav(`/p/${key.slice(5)}`); const t = ALL_ITEMS.find((i) => i.key === key); if (t) nav(t.path); }} />
       </Sider>
       <Layout>
