@@ -8,7 +8,7 @@ const rename = require('../services/hostnameRenameService');
 
 const SEGMENTS = ['site', 'os', 'team', 'tier', 'tag'];
 const DEFAULTS = {
-  order: SEGMENTS, type_field: '', types: [], sites: {},
+  order: SEGMENTS, type_field: 'asset_type', types: ['VM', 'ESXi', 'Desktop', 'Physical Server', 'Bare Metal Server'], sites: {},
   suggest_pages: null,                 // null = every records page with a Hostname field; otherwise the page slugs
   rename_pages: [],                    // pages whose form may apply the hostname to the host with Ansible
   tier_field: '', allow_reboot: true, login_user_fields: '', login_pass_fields: '',   // blank = find the login fields on the page automatically

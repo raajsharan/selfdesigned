@@ -13,6 +13,12 @@
       ansible.builtin.hostname:
         name: "{{ new_hostname }}"
       register: renamed
+    - name: Restart systemd-hostnamed so it reports the new name
+      ansible.builtin.systemd:
+        name: systemd-hostnamed
+        state: restarted
+      when: renamed.changed
+      failed_when: false
     - name: Report
       ansible.builtin.debug:
         msg: "HOSTNAME_RESULT|present||changed={{ 'yes' if renamed.changed else 'no' }};reboot=notneeded;rebooted=no"

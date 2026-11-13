@@ -5,6 +5,8 @@ import api, { errMsg } from '../../api/client';
 import PageHeader from '../../components/PageHeader';
 import { SEGMENT_LABEL } from '../Records/HostnameHelper';
 
+// Standard values from the Inventory Tool (with Proxmox) project.
+const STANDARD = { sites: { Beijing: 'BJS', Toronto: 'TOR', Burlington: 'BUR', 'Boston Bomgar': 'BOS' }, type_field: 'asset_type', types: ['VM', 'ESXi', 'Desktop', 'Physical Server', 'Bare Metal Server'] };
 const H = ({ title, sub }) => <><div style={{ fontWeight: 600, marginTop: 4 }}>{title}</div><div style={{ color: 'var(--muted)', marginBottom: 12 }}>{sub}</div></>;
 const row = { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' };
 
@@ -36,6 +38,17 @@ export default function HostnamePattern() {
   const set = (patch) => setC((x) => ({ ...x, ...patch }));
   const move = (i, d) => { const o = [...c.order]; [o[i], o[i + d]] = [o[i + d], o[i]]; set({ order: o }); };
   const example = { site: 'BUR', os: 'W', team: 'ITO', tier: 'P', tag: '0001' };
+  const loadStandard = async () => {
+    let locs = c.locations;
+    for (const name of Object.keys(STANDARD.sites)) {
+      if (locs.some((l) => l.toLowerCase() === name.toLowerCase())) continue;
+      try { locs = (await api.post('/hostname-pattern/locations', { name })).data.locations; } catch (e) { message.error(errMsg(e)); return; }
+    }
+    const sites = { ...c.sites };
+    for (const [name, code] of Object.entries(STANDARD.sites)) { const l = locs.find((x) => x.toLowerCase() === name.toLowerCase()); if (l && !sites[l]) sites[l] = code; }
+    setC((x) => ({ ...x, locations: locs, sites, type_field: x.type_field || STANDARD.type_field, types: x.types.length ? x.types : STANDARD.types }));
+    message.info('Standard codes filled in where empty. Click Save to keep them.');
+  };
   const save = async () => {
     setSaving(true);
     try { const { locations, pages, ...body } = c; const r = await api.put('/hostname-pattern', body); setC(r.data); message.success('Saved'); } catch (e) { message.error(errMsg(e)); } finally { setSaving(false); }
@@ -47,7 +60,7 @@ export default function HostnamePattern() {
   return (
     <div className="page">
       <PageHeader title="Hostname Naming" sub="Controls the “Suggested hostname” panel on record forms: the order segments are joined in, which asset types get it, and the Site / Team / Tier codes."
-        extra={<Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={save}>Save</Button>} />
+        extra={<><Button onClick={loadStandard}>Fill in standard codes</Button><Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={save}>Save</Button></>} />
       <Card style={{ marginBottom: 16 }}>
         <H title="Where it applies" sub="Choose the pages that show the Suggested hostname panel, and the pages whose form may also rename the host itself with Ansible when the record is saved." />
         <label style={{ display: 'block', marginBottom: 12 }}>Show the Suggested hostname on these pages <span style={{ color: 'var(--muted-2)' }}>(a page needs a field with the Hostname role)</span>
