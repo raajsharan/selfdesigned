@@ -3,6 +3,7 @@ const prod = () => process.env.NODE_ENV === 'production';
 module.exports = (err, req, res, _next) => {
   if (res.headersSent) return;
   if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message, details: err.details });
+  if (err.code === '23505' && /ip/.test(err.constraint || '')) return res.status(409).json({ error: 'That IP address is already used by another active record' });
   if (err.code === '23505') return res.status(409).json({ error: 'A record with the same unique value already exists' });
   if (err.code === '23503') return res.status(409).json({ error: 'Record is referenced by other data' });
   if (err.code === '23502') return res.status(400).json({ error: 'A required field is missing' });

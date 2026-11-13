@@ -48,7 +48,7 @@ export default function RecordsPage({ page }) {
           const v = meta ? meta.get(r) : r.data[c.key];
           if (meta) return dayjs(v).format('D MMM YYYY HH:mm');
           if (v === undefined || v === null || v === '') return <span style={{ color: 'var(--faint)' }}>-</span>;
-          if (c.key === nameKey) return <a className="rec-link" onClick={() => setView(r)}>{String(v)}</a>;
+          if (c.key === nameKey || f?.role === 'ip' || (f?.type === 'ip' && !roleField('ip'))) return <a className="rec-link" onClick={() => setView(r)}>{String(v)}</a>;
           if (f.type === 'boolean') return v ? 'Yes' : 'No';
           if (f.type === 'date') return dayjs(v).format('D MMM YYYY');
           if (f.role === 'status') return <Tag color={statusColor(String(v))}>{v}</Tag>;

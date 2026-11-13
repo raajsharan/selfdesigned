@@ -100,7 +100,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
         </nav>
         <div className="rfm-scroll" ref={scroller} onScroll={onScroll}>
           <Form form={form} layout="vertical" requiredMark={(label, { required }) => <>{label}{required && <span className="rfm-req">*</span>}</>} onValuesChange={(changed) => { setDirty(true); if (deptKey && deptKey in changed) autoTag(changed[deptKey]); }}>
-            <FormFields config={cfg} dropdowns={dropdowns} form={form} secretKeys={record?.secret_keys || []} cards
+            <FormFields config={cfg} dropdowns={dropdowns} form={form} slug={page.slug} recordId={record?.id} secretKeys={record?.secret_keys || []} cards
               renderAfter={(f) => {
                 if (f.type === 'password' && record?.secret_keys.includes(f.key) && (user.can_view_passwords || user.role === 'superadmin')) return (
                   <div style={{ margin: '-12px 0 12px' }}><Button size="small" icon={<EyeOutlined />} onClick={() => reveal(f.key)}>Reveal stored value</Button>

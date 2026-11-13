@@ -101,6 +101,16 @@ async function assertFieldUnique(client, page, id, data) {
   }
 }
 
+/** Live check for the form: is this IP already on an active record anywhere in the inventory? `exclude` = the record being edited. */
+exports.checkIp = async (req, res) => {
+  const ip = String(req.query.ip || '').trim();
+  if (!ip) return res.json({ used: false });
+  const { rows } = await db.query(
+    `SELECT r.id, p.title, p.slug FROM inventory_records r JOIN inventory_pages p ON p.id = r.page_id
+     WHERE r.ip_address = $1 AND r.is_deleted = FALSE AND r.is_decommissioned = FALSE AND r.id IS DISTINCT FROM $2 LIMIT 1`, [ip, req.query.exclude ? Number(req.query.exclude) || null : null]);
+  res.json(rows[0] ? { used: true, page: rows[0].title } : { used: false });
+};
+
 async function insertRecord(client, page, input, user) {
   const { data, secrets } = pick(page, input);
   for (const k of Object.keys(data)) if (data[k] === null) delete data[k];

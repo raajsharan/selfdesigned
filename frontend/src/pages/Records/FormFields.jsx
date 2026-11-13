@@ -1,5 +1,6 @@
 import { DatePicker, Divider, Form, Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
+import api from '../../api/client';
 import { ApartmentOutlined, AppstoreOutlined, BarcodeOutlined, CalendarOutlined, CheckCircleOutlined, CheckOutlined, DesktopOutlined, EditOutlined, EnvironmentOutlined, GlobalOutlined,
   KeyOutlined, LaptopOutlined, NumberOutlined, TagOutlined, ToolOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
 
@@ -62,7 +63,7 @@ const MAC_RULE = { pattern: /^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$/, message:
  * Renders the designed form layout. Used for the real editor and for the live preview in the designer
  * (with `disabled`). `secretKeys` = password fields that already hold a value.
  */
-export default function FormFields({ config, dropdowns = {}, form, disabled = false, secretKeys = [], renderAfter, cards = false }) {
+export default function FormFields({ config, dropdowns = {}, form, disabled = false, secretKeys = [], renderAfter, cards = false, slug, recordId }) {
   const fields = Object.fromEntries((config.fields || []).map((f) => [f.key, f]));
   const sections = config.form?.sections || [];
   if (!sections.length) return <div style={{ color: 'var(--muted-2)', padding: 12 }}>This page has no form layout yet.</div>;
@@ -82,6 +83,15 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
                     if (f.required && f.type !== 'boolean' && !(f.type === 'password' && secretKeys.includes(f.key))) rules.push({ required: true, message: `${f.label} is required` });
                     if (f.role === 'mac') rules.push(MAC_RULE);
                     if (f.type === 'ip') rules.push(IP_RULE);
+                    if (f.type === 'ip' || f.role === 'ip') {
+                      // Inventory-wide: an IP address may be on only one active record, on any page.
+                      if (slug && !disabled) rules.push({ validator: async (_, v) => {
+                        const ip = String(v || '').trim();
+                        if (!ip || !IP_RULE.pattern.test(ip)) return;
+                        let r; try { r = (await api.get(`/p/${slug}/check-ip`, { params: { ip, exclude: recordId || undefined } })).data; } catch { return; }   // the server re-checks on save
+                        if (r.used) throw new Error(`${ip} is already used on "${r.page}". IP addresses must be unique across the inventory.`);
+                      }, validateTrigger: 'onBlur' });
+                    }
                     return (
                       <div style={{ gridColumn: `span ${Math.min(it.span || 1, s.columns || 1)}` }}>
                         <Form.Item name={f.key} label={f.label} extra={f.hint} rules={rules} valuePropName={f.type === 'boolean' ? 'checked' : 'value'}>

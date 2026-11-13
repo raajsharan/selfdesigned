@@ -148,10 +148,17 @@ const COLUMN_MAX = { vm_name: 255, hostname: 255, ip_address: 64, mac_address: 6
 /** Promoted-column values for a record's data (null for roles the page does not define). */
 function promote(page, data) {
   const out = Object.fromEntries(Object.values(ROLE_COLUMNS).map((c) => [c, null]));
-  for (const f of page.config.fields || []) {
+  const fields = page.config.fields || [];
+  for (const f of fields) {
     if (!f.role) continue;
     const v = data[f.key]; const col = ROLE_COLUMNS[f.role];
     out[col] = v === undefined || v === null || v === '' ? null : String(v).slice(0, COLUMN_MAX[col]);
+  }
+  // A page with an IP-type field but no field carrying the "IP address" role must still take part in the inventory-wide IP check.
+  if (!fields.some((f) => f.role === 'ip')) {
+    const ipField = fields.find((f) => f.type === 'ip' && !f.role);
+    const v = ipField && data[ipField.key];
+    if (v !== undefined && v !== null && v !== '') out.ip_address = String(v).trim().slice(0, COLUMN_MAX.ip_address);
   }
   return out;
 }
