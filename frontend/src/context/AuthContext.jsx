@@ -5,7 +5,7 @@ const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
 
 const LOCK_KEY = 'inv_locked';
-const IDLE_MS = 5 * 60 * 1000;   // lock the screen after 5 minutes without activity
+const IDLE_MS = 15 * 60 * 1000;   // lock the screen after 15 minutes without activity
 const readLocked = () => { try { return sessionStorage.getItem(LOCK_KEY) === '1'; } catch { return false; } };
 const writeLocked = (v) => { try { v ? sessionStorage.setItem(LOCK_KEY, '1') : sessionStorage.removeItem(LOCK_KEY); } catch { /* storage unavailable */ } };
 
