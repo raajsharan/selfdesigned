@@ -3,6 +3,7 @@ const { pageKey } = require('../config/pages');
 const svc = require('../services/pageService');
 const records = require('./recordController');
 const { audit } = require('../services/auditService');
+const { getSetting, setSetting } = require('../services/settingsService');
 const { bad, notFound, conflict, forbidden } = require('../utils/httpError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -43,6 +44,10 @@ exports.create = async (req, res) => {
   const { rows } = await db.query(
     'INSERT INTO inventory_pages (slug, title, kind, icon, description, config, sort_order, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
     [id.slug, id.title, kind, id.icon, svc.str(req.body.description, 500) || null, JSON.stringify(config), mx[0].n, req.user.id]);
+  if (kind === 'records' && req.body.hostname_naming === true) {   // the Suggested hostname panel is enabled for pages in an explicit list
+    const cur = await getSetting('hostname_pattern', {});
+    if (Array.isArray(cur.suggest_pages) && !cur.suggest_pages.includes(id.slug)) await setSetting('hostname_pattern', { ...cur, suggest_pages: [...cur.suggest_pages, id.slug] });
+  }
   audit(req, 'create', 'page', rows[0].id, { slug: id.slug, kind });
   res.status(201).json(rows[0]);
 };

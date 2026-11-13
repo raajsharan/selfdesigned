@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, App, Button, Form, Input, Modal, Radio, Select, Space, Tag } from 'antd';
+import { Alert, App, Button, Checkbox, Form, Input, Modal, Radio, Select, Space, Tag } from 'antd';
+import { STANDARD, STANDARD_DEFAULT, standardConfig } from './Designer/standardFields';
 import { CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import api, { errMsg } from '../../api/client';
 import PageHeader from '../../components/PageHeader';
@@ -21,7 +22,9 @@ export default function PagesAdmin() {
   const submitCreate = async () => {
     const v = await form.validateFields();
     try {
-      const r = await api.post('/pages', { ...v, config: v.kind === 'view' ? { sources: [], columns: [] } : { fields: [], form: { sections: [] }, table: { columns: [] } } });
+      const picked = v.standard || [];
+      const config = v.kind === 'view' ? { sources: [], columns: [] } : (picked.length ? standardConfig(picked) : { fields: [], form: { sections: [] }, table: { columns: [] } });
+      const r = await api.post('/pages', { slug: v.slug, title: v.title, icon: v.icon, kind: v.kind, config, hostname_naming: v.kind !== 'view' && picked.includes('hostname') });
       message.success('Page created. Now design it.'); setCreate(false); reload(); nav(`/admin/pages/${r.data.slug}`);
     } catch (e) { message.error(errMsg(e)); }
   };
@@ -41,7 +44,7 @@ export default function PagesAdmin() {
   return (
     <div className="page">
       <PageHeader title="Page Designer" sub="Nothing is built in: every page in the menu is one you design here. Drag to change the menu order."
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); form.setFieldsValue({ kind: 'records', icon: 'database' }); setSlugTouched(false); setCreate(true); }}>New page</Button>} />
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); form.setFieldsValue({ kind: 'records', icon: 'database', standard: STANDARD_DEFAULT }); setSlugTouched(false); setCreate(true); }}>New page</Button>} />
       {pages && !pages.length && <Alert type="info" showIcon style={{ marginBottom: 16 }} message="No pages yet" description={<>Create a <b>records page</b> to hold your own data (servers, laptops, licences, anything), choose its fields, and arrange its form and table. Then create an <b>"All records" view</b> to combine whichever pages you like into one table.</>} />}
       <div style={{ maxWidth: 820 }}>
         {(pages || []).map((p, i) => { const Icon = iconFor(p.icon); return (
@@ -70,6 +73,11 @@ export default function PagesAdmin() {
             </Radio.Group>
           </Form.Item>
           <Form.Item name="title" label="Title" rules={[{ required: true, message: 'Give the page a title' }]}><Input maxLength={96} autoFocus /></Form.Item>
+          <Form.Item noStyle shouldUpdate={(a, b) => a.kind !== b.kind}>{({ getFieldValue }) => getFieldValue('kind') !== 'view' && (
+            <Form.Item name="standard" label="Standard fields to start with" extra="A Name field comes with these. Untick everything to start with an empty page. You can change all of it in the designer afterwards.">
+              <Checkbox.Group style={{ display: 'grid', gap: 8 }} onChange={(vals) => { if (vals.includes('hostname') && !vals.includes('tag')) form.setFieldValue('standard', [...vals, 'tag']); }}>
+                {STANDARD.map((s) => <Checkbox key={s.id} value={s.id}><b>{s.label}</b><div style={{ color: 'var(--muted)', fontSize: 12, marginLeft: 0 }}>{s.desc}</div></Checkbox>)}
+              </Checkbox.Group></Form.Item>)}</Form.Item>
           <Form.Item name="slug" label="Address" extra="Used in the URL and for permissions. Cannot be changed later." rules={[{ required: true }, { pattern: /^[a-z][a-z0-9-]{1,47}$/, message: 'Lower-case letters, digits and hyphens, starting with a letter' }]}>
             <Input addonBefore="/p/" onChange={() => setSlugTouched(true)} /></Form.Item>
           <Form.Item name="icon" label="Icon"><Select options={Object.keys(PAGE_ICONS).map((k) => { const I = PAGE_ICONS[k]; return { value: k, label: <span><I /> {k}</span> }; })} /></Form.Item>
