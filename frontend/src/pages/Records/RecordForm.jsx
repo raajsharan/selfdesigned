@@ -3,6 +3,7 @@ import { App, Button, Form, Modal } from 'antd';
 import { CloseOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import api, { errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import HostnameHelper from './HostnameHelper';
 import FormFields, { toFormValues, toPayload } from './FormFields';
 
 /** Under the Asset tag field: shows where tags for the chosen department come from and fills in the next free one. */
@@ -29,10 +30,11 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
   const { message } = App.useApp(); const { user } = useAuth();
   const [form] = Form.useForm(); const [saving, setSaving] = useState(false); const [revealed, setRevealed] = useState({});
   const [dirty, setDirty] = useState(false); const [active, setActive] = useState(null);
-  const scroller = useRef(null);
+  const scroller = useRef(null); const [hnPattern, setHnPattern] = useState(null);
+  useEffect(() => { if (open) api.get('/hostname-pattern').then((r) => setHnPattern(r.data)).catch(() => {}); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const cfg = page.config; const sections = (cfg.form?.sections || []).filter((s) => s.items.length);
   const roleKey = (role) => cfg.fields.find((f) => f.role === role)?.key;
-  const nameKey = roleKey('name') || roleKey('hostname');
+  const nameKey = roleKey('name') || roleKey('hostname'); const hostKey = roleKey('hostname');
 
   useEffect(() => {
     if (!open) return;
@@ -106,6 +108,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
                   <div style={{ margin: '-12px 0 12px' }}><Button size="small" icon={<EyeOutlined />} onClick={() => reveal(f.key)}>Reveal stored value</Button>
                     {revealed[f.key] !== undefined && <span className="mono" style={{ marginLeft: 8 }}>{revealed[f.key] || '(empty)'}</span>}</div>);
                 if (tagKey && deptKey && f.key === tagKey) return <TagHelper slug={page.slug} department={form.getFieldValue(deptKey)} onUse={(tag) => { form.setFieldValue(tagKey, tag); setDirty(true); }} />;
+                if (hostKey && f.key === hostKey && hnPattern) return <HostnameHelper key={record?.id || 'new'} pattern={hnPattern} cfg={cfg} values={form.getFieldsValue(true)} onUse={(h) => { form.setFieldValue(hostKey, h); setDirty(true); }} />;
                 return null;
               }} />
           </Form>

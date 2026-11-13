@@ -8,6 +8,7 @@ import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import PageHost from './pages/PageHost';
 import PagesAdmin from './pages/Admin/PagesAdmin';
+import HostnamePattern from './pages/Admin/HostnamePattern';
 import FieldLibrary from './pages/Admin/FieldLibrary';
 import PageDesigner from './pages/Admin/PageDesigner';
 import Decommissioned from './pages/Decommissioned/Decommissioned';
@@ -47,7 +48,7 @@ const ROUTES = {
   vmware: <VMwareDiscovery />, proxmox: <ProxmoxDiscovery />, tenable: <TenableReport />, 'nessus-status': <NessusStatus />,
   'endpoint-central': <EndpointCentral />, 'software-status': <MEStatus />, 'weekly-report': <WeeklyReport />,
   'data-health': <DataHealth />, reconcile: <Reconcile />, 'admin-users': <Users />, 'admin-roles': <Roles />,
-  'admin-user-page-control': <UserPageControl />, 'admin-pages': <PagesAdmin />, 'admin-field-library': <FieldLibrary />, 'admin-dropdowns': <Dropdowns />,
+  'admin-user-page-control': <UserPageControl />, 'admin-pages': <PagesAdmin />, 'admin-field-library': <FieldLibrary />, 'admin-hostname-pattern': <HostnamePattern />, 'admin-dropdowns': <Dropdowns />,
   'admin-tag-ranges': <TagRanges />, 'admin-compliance': <ComplianceConfig />,
   'admin-migration-config': <MigrationConfig />, 'admin-teams': <TeamsNotifications />, 'admin-backup': <Backup />,
   'admin-audit': <AuditLogs />, 'admin-branding': <Branding />, 'admin-nav-order': <Navigate to="/" replace />,

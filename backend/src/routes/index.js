@@ -32,6 +32,9 @@ api.use('/auth', require('./authRoutes'));
 api.use('/users', require('./userRoutes'));
 api.use('/roles', require('./rolesRoutes'));
 
+api.get('/hostname-pattern', auth, h(require('../controllers/hostnamePatternController').get));   // forms read it
+api.put('/hostname-pattern', auth, requirePageAccess('admin-hostname-pattern'), body('order').isArray(), validate, h(require('../controllers/hostnamePatternController').put));
+api.post('/hostname-pattern/locations', auth, requirePageAccess('admin-hostname-pattern'), body('name').isString().isLength({ min: 1, max: 255 }), validate, h(require('../controllers/hostnamePatternController').addLocation));
 api.use('/field-library', require('./fieldLibraryRoutes'));
 api.use('/pages', pageRoutes.designer);          // designing pages
 api.use('/p/:slug', pageRoutes.data);            // records / rows of one designed page
