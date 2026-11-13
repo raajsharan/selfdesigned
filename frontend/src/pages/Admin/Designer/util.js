@@ -37,3 +37,19 @@ export const dropdownFields = (cats, libFields = []) => {
   const used = new Set(libFields.filter((f) => f.optionsCategory).map((f) => f.optionsCategory));
   return cats.filter((c) => !used.has(c)).sort().map((c) => ({ id: `dd:${c}`, fromDropdown: true, key: c, label: titleOf(c), type: 'select', optionsCategory: c, ...(DD_ROLE[c] ? { role: DD_ROLE[c] } : {}) }));
 };
+
+/** Put fields on the form (end of the last section, or a new "Details" section) so a field you add is never silently missing from New record. */
+export function placeOnForm(config, fields) {
+  const sections = (config.form?.sections || []).map((s) => ({ ...s, items: [...s.items] }));
+  if (!sections.length) sections.push({ id: uid(), title: 'Details', columns: 2, items: [] });
+  const last = sections[sections.length - 1]; const placed = new Set(sections.flatMap((s) => s.items.map((i) => i.key)));
+  for (const f of fields) if (!placed.has(f.key)) last.items.push({ key: f.key, span: f.type === 'textarea' ? last.columns || 1 : 1 });
+  return { ...config, form: { ...(config.form || {}), sections } };
+}
+
+/** For a Dropdown Master list whose values are linked to another list (parent value), the parent list's name: os_version -> os_type. */
+export function parentCategory(category, dropdowns) {
+  const parents = Object.values((dropdowns.$parents || {})[category] || {}); if (!parents.length) return null;
+  const want = new Set(parents);
+  return Object.keys(dropdowns).filter((k) => k !== '$parents' && k !== category).find((k) => [...want].every((v) => (dropdowns[k] || []).includes(v))) || null;
+}

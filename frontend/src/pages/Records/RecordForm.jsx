@@ -3,7 +3,7 @@ import { App, Button, Form, Modal } from 'antd';
 import { CloseOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import api, { errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import HostnameHelper from './HostnameHelper';
+import HostnameHelper, { hostField } from './HostnameHelper';
 import FormFields, { toFormValues, toPayload } from './FormFields';
 
 /** Under the Asset tag field: shows where tags for the chosen department come from and fills in the next free one. */
@@ -47,7 +47,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
   useEffect(() => { if (open) api.get('/hostname-pattern').then((r) => setHnPattern(r.data)).catch(() => {}); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const cfg = page.config; const sections = (cfg.form?.sections || []).filter((s) => s.items.length);
   const roleKey = (role) => cfg.fields.find((f) => f.role === role)?.key;
-  const nameKey = roleKey('name') || roleKey('hostname'); const hostKey = roleKey('hostname');
+  const nameKey = roleKey('name') || roleKey('hostname'); const hostKey = hostField(cfg, 'hostname')?.key;
 
   useEffect(() => {
     if (!open) return;

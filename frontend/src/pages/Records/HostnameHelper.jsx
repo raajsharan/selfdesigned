@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Checkbox, Select, Switch, Tag } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 
+// Where each input lives on a page: the field with that role, else the field whose key or label looks right (existing pages often never set roles).
+const LOOK = { hostname: /host.?name/i, location: /location|^site$/i, os: /^os$|os.?type|operating.?system/i, asset_tag: /asset.?tag/i, department: /department/i, ip: /^ip$|ip.?addr/i };
+export function hostField(cfg, role) {
+  const fs = cfg.fields || [];
+  const hit = fs.find((f) => f.role === role) || fs.find((f) => f.type !== 'password' && !f.role && LOOK[role].test(`${f.key} ${f.label || ''}`));
+  return hit || null;
+}
+
 /** Best-effort Team for a department (keyword rules from the Inventory Tool); null when the code is not in the current team list. */
 export function guessTeam(department, teams = []) {
   const d = String(department || '').toLowerCase(); let g = null;
@@ -20,7 +28,7 @@ export const SEGMENT_LABEL = { site: 'Site', os: 'OS', team: 'Department (Team)'
 
 /** "Suggested hostname" panel under the Hostname field. Site, OS and tag come from the record; Team and Tier are picked here. */
 export default function HostnameHelper({ pattern, cfg, values, onUse, canApply, onApply }) {
-  const role = (r) => cfg.fields.find((f) => f.role === r)?.key;
+  const role = (r) => hostField(cfg, r)?.key;
   const loc = values[role('location')]; const os = values[role('os')]; const tag = values[role('asset_tag')]; const dept = values[role('department')];
   const [team, setTeam] = useState(); const [tier, setTier] = useState(); const teamTouched = useRef(false);   // a manual Team choice is never overwritten by the guess
   const [apply, setApply] = useState(false); const [reboot, setReboot] = useState(true);

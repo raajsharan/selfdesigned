@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import api, { errMsg } from '../../../api/client';
 import { useAuth } from '../../../context/AuthContext';
 import { Draggable, DropZone, move } from '../../../components/dnd';
-import { dropdownFields, keyFrom, rewriteKey, uid } from './util';
+import { dropdownFields, keyFrom, parentCategory, placeOnForm, rewriteKey, uid } from './util';
 
 export const TYPE_LABEL = { mac: 'MAC address (AA:BB:CC:DD:EE:FF)', text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', ip: 'IP address (x.x.x.x)', password: 'Password (encrypted)' };
 
@@ -64,8 +64,8 @@ export function FieldBody({ f, i, config, set, meta, categories, locked, rename 
 /** Pick fields from the Field Library; each is copied into the page (a new key if the library key is taken, no role if the page already uses it). */
 function LibraryPicker({ open, onClose, config, setConfig, meta }) {
   const { message } = App.useApp(); const { has } = useAuth();
-  const [rows, setRows] = useState(null); const [sel, setSel] = useState([]);
-  useEffect(() => { if (open) { setSel([]); Promise.all([api.get('/field-library'), api.get('/dropdowns')]).then(([l, d]) => setRows([...l.data.fields, ...dropdownFields(Object.keys(d.data).filter((k) => !k.startsWith('$')), l.data.fields)])).catch((e) => { message.error(errMsg(e)); setRows([]); }); } }, [open, message]);
+  const [rows, setRows] = useState(null); const [sel, setSel] = useState([]); const [dd, setDd] = useState({});
+  useEffect(() => { if (open) { setSel([]); Promise.all([api.get('/field-library'), api.get('/dropdowns')]).then(([l, d]) => { setDd(d.data); setDd(d.data); setRows([...l.data.fields, ...dropdownFields(Object.keys(d.data).filter((k) => !k.startsWith('$')), l.data.fields)]); }).catch((e) => { message.error(errMsg(e)); setRows([]); }); } }, [open, message]);
   const have = new Set(config.fields.map((f) => f.key));
   const add = () => {
     setConfig((c) => {
@@ -74,11 +74,13 @@ function LibraryPicker({ open, onClose, config, setConfig, meta }) {
         const { id: _i, key, fromDropdown: _d, ...def } = rows.find((r) => r.id === id);   // eslint-disable-line no-unused-vars
         const k = taken.has(key) ? keyFrom(key, taken) : key; taken.add(k);
         if (def.role && roles.has(def.role)) delete def.role; else if (def.role) roles.add(def.role);
+        // A list linked to another list (OS version -> OS type) follows the page's field for that list, when it has one.
+        if (def.optionsCategory && !def.dependsOn) { const pc = parentCategory(def.optionsCategory, dd); const pf = pc && c.fields.find((x) => x.optionsCategory === pc); if (pf) def.dependsOn = pf.key; }
         added.push({ ...def, key: k, _id: uid() });
       }
-      return { ...c, fields: [...c.fields, ...added] };
+      return placeOnForm({ ...c, fields: [...c.fields, ...added] }, added);
     });
-    message.success(`Added ${sel.length} field(s). Place them on the Form and Table tabs.`); onClose();
+    message.success(`Added ${sel.length} field(s) and placed them at the end of the form. Adjust them on the Form tab.`); onClose();
   };
   return (
     <Modal open={open} title="Add fields from the Field Library" onCancel={onClose} onOk={add} okText={`Add ${sel.length || ''} field(s)`} okButtonProps={{ disabled: !sel.length }} width={680}>
@@ -96,7 +98,7 @@ function LibraryPicker({ open, onClose, config, setConfig, meta }) {
 export default function FieldsTab({ config, setConfig, meta, categories, lockedKeys }) {
   const [open, setOpen] = useState(null); const [lib, setLib] = useState(false);
   const fields = config.fields;
-  const add = () => setConfig((c) => { const key = keyFrom('New field', new Set(c.fields.map((f) => f.key))); setOpen(key); return { ...c, fields: [...c.fields, { key, label: 'New field', type: 'text', _auto: true, _id: uid() }] }; });
+  const add = () => setConfig((c) => { const key = keyFrom('New field', new Set(c.fields.map((f) => f.key))); setOpen(key); const nf = { key, label: 'New field', type: 'text', _auto: true, _id: uid() }; return placeOnForm({ ...c, fields: [...c.fields, nf] }, [nf]); });
   const rename = (oldKey, newKey) => { if (!newKey || newKey === oldKey) return; setConfig((c) => rewriteKey(c, oldKey, newKey)); setOpen((o) => (o === oldKey ? newKey : o)); };
   const remove = (key) => setConfig((c) => rewriteKey(c, key, null));
   const reorder = (from, to) => setConfig((c) => ({ ...c, fields: move(c.fields, from, to > from ? to - 1 : to) }));
