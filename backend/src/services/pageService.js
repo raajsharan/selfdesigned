@@ -10,7 +10,7 @@ const ROLE_COLUMNS = {
 };
 const ROLE_LABELS = { name: 'Name', hostname: 'Hostname', ip: 'IP address', mac: 'MAC address', asset_tag: 'Asset tag', status: 'Status', os: 'Operating system',
   department: 'Department', location: 'Location', owner: 'Owner', patching_type: 'Patching type', last_patched: 'Last patched (date)' };
-const FIELD_TYPES = ['text', 'textarea', 'number', 'boolean', 'date', 'select', 'password', 'ip', 'mac'];
+const FIELD_TYPES = ['text', 'textarea', 'number', 'boolean', 'date', 'select', 'password', 'ip', 'mac', 'hostname_suggest'];   // hostname_suggest is computed on the form and never stored
 const KEY_RE = /^[a-z][a-z0-9_]{0,40}$/;
 const SLUG_RE = /^[a-z][a-z0-9-]{1,47}$/;
 const RESERVED = new Set(['constructor', 'prototype', '__proto__', 'hasownproperty']);
@@ -39,8 +39,11 @@ function cleanFields(list) {
       if (type === 'password') throw bad('Password fields cannot have a role');
       roles.add(f.role); field.role = f.role;
     }
-    if (f.required) field.required = true;
-    if (f.unique) field.unique = true;
+    if (type === 'hostname_suggest') { if (f.role) throw bad('The suggested-hostname field cannot have a role'); }
+    else {
+      if (f.required) field.required = true;
+      if (f.unique) field.unique = true;
+    }
     if (f.hint) field.hint = str(f.hint, 200);
     if (type === 'select') {
       if (f.optionsCategory) field.optionsCategory = str(f.optionsCategory, 64);
@@ -79,11 +82,11 @@ function cleanTable(table, fields) {
   for (const c of Array.isArray(table?.columns) ? table.columns : []) {
     const key = typeof c === 'string' ? c : c.key;
     if (!keys.has(key) || key === '_page') throw bad(`The table uses a column that does not exist: "${key}"`);
-    if (fields.find((f) => f.key === key)?.type === 'password') throw bad('Password fields cannot be table columns');
+    if (['password', 'hostname_suggest'].includes(fields.find((f) => f.key === key)?.type)) throw bad('Password and suggested-hostname fields cannot be table columns');
     if (seen.has(key)) continue;
     seen.add(key); columns.push({ key, width: intIn(c.width, 60, 600, 0) || undefined, fixed: c.fixed === true || undefined });   // fixed = frozen at the left while scrolling
   }
-  const fieldKeys = new Set(fields.filter((f) => f.type !== 'password').map((f) => f.key));
+  const fieldKeys = new Set(fields.filter((f) => !['password', 'hostname_suggest'].includes(f.type)).map((f) => f.key));
   const filters = (Array.isArray(table?.filters) ? table.filters : []).filter((k) => fieldKeys.has(k)).slice(0, 8);
   const sortKey = table?.sort?.key;
   return { columns, filters, pageSize: [10, 25, 50, 100, 200].includes(Number(table?.pageSize)) ? Number(table.pageSize) : 25,

@@ -7,7 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { Draggable, DropZone, move } from '../../../components/dnd';
 import { dropdownFields, keyFrom, parentCategory, placeOnForm, rewriteKey, uid } from './util';
 
-export const TYPE_LABEL = { mac: 'MAC address (AA:BB:CC:DD:EE:FF)', text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', ip: 'IP address (x.x.x.x)', password: 'Password (encrypted)' };
+export const TYPE_LABEL = { hostname_suggest: 'Suggested hostname (computed, not stored)', mac: 'MAC address (AA:BB:CC:DD:EE:FF)', text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', ip: 'IP address (x.x.x.x)', password: 'Password (encrypted)' };
 
 export function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
   const others = config.fields.filter((x) => x.key !== f.key);
@@ -23,15 +23,16 @@ export function FieldBody({ f, i, config, set, meta, categories, locked, rename 
           <Input className="mono" value={f.key} disabled={locked} onChange={(e) => { upd({ _auto: false }); rename(f.key, e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); }} /></label>
       </div>
       <div style={row}>
-        <label>Type<Select style={{ width: '100%' }} value={f.type} onChange={(type) => upd({ type, ...(type === 'password' ? { role: undefined, unique: false } : {}) })} options={meta.types.map((t) => ({ value: t, label: TYPE_LABEL[t] || t }))} /></label>
+        <label>Type<Select style={{ width: '100%' }} value={f.type} onChange={(type) => upd({ type, ...(type === 'password' || type === 'hostname_suggest' ? { role: undefined, unique: false } : {}), ...(type === 'hostname_suggest' ? { required: false } : {}) })} options={meta.types.map((t) => ({ value: t, label: TYPE_LABEL[t] || t }))} /></label>
         <label>Meaning <span style={{ color: 'var(--muted-2)' }}>(lets reports, uniqueness and decommission find this field)</span>
-          <Select style={{ width: '100%' }} allowClear placeholder="None" disabled={f.type === 'password'} value={f.role} onChange={(role) => upd({ role })}
+          <Select style={{ width: '100%' }} allowClear placeholder="None" disabled={f.type === 'password' || f.type === 'hostname_suggest'} value={f.role} onChange={(role) => upd({ role })}
             options={meta.roles.map((r) => ({ value: r.key, label: r.label, disabled: usedRoles.has(r.key) }))} /></label>
       </div>
       <div style={{ display: 'flex', gap: 24, marginBottom: 12, flexWrap: 'wrap' }}>
-        <Checkbox checked={!!f.required} onChange={(e) => upd({ required: e.target.checked })}>Required</Checkbox>
-        <Checkbox checked={!!f.unique} disabled={f.type === 'password' || f.type === 'boolean'} onChange={(e) => upd({ unique: e.target.checked })}>Must be unique on this page</Checkbox>
+        <Checkbox checked={!!f.required} disabled={f.type === 'hostname_suggest'} onChange={(e) => upd({ required: e.target.checked })}>Required</Checkbox>
+        <Checkbox checked={!!f.unique} disabled={f.type === 'password' || f.type === 'boolean' || f.type === 'hostname_suggest'} onChange={(e) => upd({ unique: e.target.checked })}>Must be unique on this page</Checkbox>
       </div>
+      {f.type === 'hostname_suggest' && <Alert type="info" showIcon style={{ marginBottom: 12 }} message="Shows the suggested hostname on the form" description="Place it anywhere on the form. It builds the name from Site, OS, Department (Team), Tier and Asset Tag as set in Administration > Hostname Naming, and offers a button that fills the Hostname field. Nothing is stored in this field." />}
       <label style={{ display: 'block', marginBottom: 12 }}>Help text (shown under the field)<Input value={f.hint || ''} maxLength={200} onChange={(e) => upd({ hint: e.target.value })} /></label>
       {f.type === 'select' && (
         <div style={{ marginBottom: 12 }}>

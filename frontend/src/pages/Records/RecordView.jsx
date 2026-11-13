@@ -101,7 +101,7 @@ export default function RecordView({ page, record, open, onClose, onEdit, onDeco
         </div>)}
       <div className="rvw-grid">
         {cfg.form.sections.map((s) => {
-          const items = s.items.map((i) => fields[i.key]).filter((f) => f && isVisible(f, d));
+          const items = s.items.map((i) => fields[i.key]).filter((f) => f && f.type !== 'hostname_suggest' && isVisible(f, d));
           const hidden = items.filter(isEmpty); const shown = expanded[s.id] ? items : items.filter((f) => !isEmpty(f));
           if (!items.length) return null;
           return (

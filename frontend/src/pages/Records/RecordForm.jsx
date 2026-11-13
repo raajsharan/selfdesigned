@@ -47,7 +47,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
   useEffect(() => { if (open) api.get('/hostname-pattern').then((r) => setHnPattern(r.data)).catch(() => {}); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const cfg = page.config; const sections = (cfg.form?.sections || []).filter((s) => s.items.length);
   const roleKey = (role) => cfg.fields.find((f) => f.role === role)?.key;
-  const nameKey = roleKey('name') || roleKey('hostname'); const hostKey = hostField(cfg, 'hostname')?.key;
+  const nameKey = roleKey('name') || roleKey('hostname'); const hostKey = hostField(cfg, 'hostname')?.key; const hasSuggestField = cfg.fields.some((f) => f.type === 'hostname_suggest');
 
   useEffect(() => {
     if (!open) return;
@@ -124,7 +124,8 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
                   <div style={{ margin: '-12px 0 12px' }}><Button size="small" icon={<EyeOutlined />} onClick={() => reveal(f.key)}>Reveal stored value</Button>
                     {revealed[f.key] !== undefined && <span className="mono" style={{ marginLeft: 8 }}>{revealed[f.key] || '(empty)'}</span>}</div>);
                 if (tagKey && deptKey && f.key === tagKey) return <TagHelper slug={page.slug} department={form.getFieldValue(deptKey)} onUse={(tag) => { form.setFieldValue(tagKey, tag); setDirty(true); }} />;
-                if (hostKey && f.key === hostKey && hnPattern && (hnPattern.suggest_pages ?? [page.slug]).includes(page.slug)) return <HostnameHelper canApply={(hnPattern.rename_pages || []).includes(page.slug) && canWrite} onApply={(v) => { applyRef.current = v; }} key={record?.id || 'new'} pattern={hnPattern} cfg={cfg} values={form.getFieldsValue(true)} onUse={(h) => { form.setFieldValue(hostKey, h); setDirty(true); }} />;
+                if (f.type === 'hostname_suggest') return hostKey && hnPattern && (hnPattern.suggest_pages ?? [page.slug]).includes(page.slug) ? <HostnameHelper key={record?.id || 'new'} label={f.label} pattern={hnPattern} cfg={cfg} values={form.getFieldsValue(true)} onUse={(h) => { form.setFieldValue(hostKey, h); setDirty(true); }} canApply={(hnPattern.rename_pages || []).includes(page.slug) && canWrite} onApply={(v) => { applyRef.current = v; }} /> : <div style={{ color: 'var(--muted)', marginBottom: 14 }}>{f.label}: not enabled for this page (Administration &gt; Hostname Naming) or the page has no Hostname field.</div>;
+                if (!hasSuggestField && hostKey && f.key === hostKey && hnPattern && (hnPattern.suggest_pages ?? [page.slug]).includes(page.slug)) return <HostnameHelper canApply={(hnPattern.rename_pages || []).includes(page.slug) && canWrite} onApply={(v) => { applyRef.current = v; }} key={record?.id || 'new'} pattern={hnPattern} cfg={cfg} values={form.getFieldsValue(true)} onUse={(h) => { form.setFieldValue(hostKey, h); setDirty(true); }} />;
                 return null;
               }} />
           </Form>

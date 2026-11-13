@@ -6,7 +6,7 @@ import { ThunderboltOutlined } from '@ant-design/icons';
 const LOOK = { hostname: /host.?name/i, location: /location|^site$/i, os: /^os$|os.?type|operating.?system/i, asset_tag: /asset.?tag/i, department: /department/i, ip: /^ip$|ip.?addr/i };
 export function hostField(cfg, role) {
   const fs = cfg.fields || [];
-  const hit = fs.find((f) => f.role === role) || fs.find((f) => f.type !== 'password' && !f.role && LOOK[role].test(`${f.key} ${f.label || ''}`));
+  const hit = fs.find((f) => f.role === role) || fs.find((f) => f.type !== 'password' && f.type !== 'hostname_suggest' && !f.role && LOOK[role].test(`${f.key} ${f.label || ''}`));
   return hit || null;
 }
 
@@ -27,7 +27,7 @@ export const osLetter = (os) => { const s = String(os || ''); return /windows/i.
 export const SEGMENT_LABEL = { site: 'Site', os: 'OS', team: 'Department (Team)', tier: 'Tier', tag: 'Asset Tag' };
 
 /** "Suggested hostname" panel under the Hostname field. Site, OS and tag come from the record; Team and Tier are picked here. */
-export default function HostnameHelper({ pattern, cfg, values, onUse, canApply, onApply }) {
+export default function HostnameHelper({ pattern, cfg, values, onUse, canApply, onApply, label = 'Suggested hostname' }) {
   const role = (r) => hostField(cfg, r)?.key;
   const loc = values[role('location')]; const os = values[role('os')]; const tag = values[role('asset_tag')]; const dept = values[role('department')];
   const [team, setTeam] = useState(); const [tier, setTier] = useState(); const teamTouched = useRef(false);   // a manual Team choice is never overwritten by the guess
@@ -57,7 +57,7 @@ export default function HostnameHelper({ pattern, cfg, values, onUse, canApply, 
   const hintFor = { site: loc ? `no site code for "${loc}" (Administration > Hostname Naming)` : 'choose a Location', os: os ? 'OS not recognised' : 'choose an OS', team: 'pick a Team', tier: 'pick a Tier', tag: 'needs an Asset tag with digits' };
   return (
     <div className="hn-panel" style={{ margin: '-4px 0 14px', padding: 12, border: '1px dashed var(--border)', borderRadius: 8 }}>
-      <div style={{ fontWeight: 600, marginBottom: 8 }}><ThunderboltOutlined /> Suggested hostname</div>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}><ThunderboltOutlined /> {label}</div>
       {values[role('hostname')] && <div style={{ color: 'var(--muted)', marginBottom: 8 }}>Currently in the form: <span className="mono">{values[role('hostname')]}</span></div>}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <Select allowClear style={{ minWidth: 220 }} placeholder="Team" value={team} onChange={(v) => { teamTouched.current = true; setTeam(v); }} options={pattern.teams.map((t) => ({ value: t.code, label: `${t.code} · ${t.label}` }))} />

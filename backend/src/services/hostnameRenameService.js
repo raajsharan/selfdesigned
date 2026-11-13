@@ -26,7 +26,7 @@ function loginFields(fields, cfg) {
 }
 const LOOK = { hostname: /host.?name/i, os: /^os$|os.?type|operating.?system/i, ip: /^ip$|ip.?addr/i };
 /** The field for a role, else the field whose key or label looks right (pages often never set roles). */
-const roleField = (fields, role) => fields.find((f) => f.role === role) || fields.find((f) => f.type !== 'password' && !f.role && LOOK[role].test(`${f.key} ${f.label || ''}`)) || null;
+const roleField = (fields, role) => fields.find((f) => f.role === role) || fields.find((f) => f.type !== 'password' && f.type !== 'hostname_suggest' && !f.role && LOOK[role].test(`${f.key} ${f.label || ''}`)) || null;
 const prune = () => { for (const [k, j] of jobs) if (j.finished_at && Date.now() - j.finished_at > JOB_TTL_MS) jobs.delete(k); };
 
 /** Why this rename cannot be run, or null. */

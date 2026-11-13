@@ -6,7 +6,7 @@ export const META_COLS = [{ key: '_created_at', label: 'Created' }, { key: '_upd
 
 export default function TableTab({ config, setConfig }) {
   const table = config.table;
-  const all = [...config.fields.filter((f) => f.type !== 'password').map((f) => ({ key: f.key, label: f.label })), ...META_COLS];
+  const all = [...config.fields.filter((f) => f.type !== 'password' && f.type !== 'hostname_suggest').map((f) => ({ key: f.key, label: f.label })), ...META_COLS];
   const label = (k) => all.find((a) => a.key === k)?.label || k;
   const used = new Set(table.columns.map((c) => c.key));
   const palette = all.filter((a) => !used.has(a.key));
@@ -60,7 +60,7 @@ export default function TableTab({ config, setConfig }) {
         <div className="designer-pane" style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <label style={{ gridColumn: '1 / -1' }}>Filter drop-downs above the table <span style={{ color: 'var(--muted-2)' }}>(up to 8)</span>
             <Select mode="multiple" maxCount={8} style={{ width: '100%' }} value={table.filters} placeholder="None" onChange={(filters) => setTable((t) => ({ ...t, filters }))}
-              options={config.fields.filter((f) => f.type !== 'password').map((f) => ({ value: f.key, label: f.label }))} /></label>
+              options={config.fields.filter((f) => f.type !== 'password' && f.type !== 'hostname_suggest').map((f) => ({ value: f.key, label: f.label }))} /></label>
           <label>Default sort
             <div style={{ display: 'flex', gap: 8 }}><Select style={{ flex: 1 }} value={table.sort.key} onChange={(key) => setTable((t) => ({ ...t, sort: { ...t.sort, key } }))} options={all.map((a) => ({ value: a.key, label: a.label }))} />
               <Select style={{ width: 120 }} value={table.sort.order} onChange={(order) => setTable((t) => ({ ...t, sort: { ...t.sort, order } }))} options={[{ value: 'asc', label: 'A to Z' }, { value: 'desc', label: 'Z to A' }]} /></div></label>

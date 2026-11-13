@@ -37,7 +37,7 @@ export function ColumnsTab({ config, setConfig }) {
   const options = useMemo(() => {
     const m = new Map();
     for (const slug of config.sources) for (const f of defs[slug]?.config.fields || []) {
-      if (f.type === 'password') continue;
+      if (f.type === 'password' || f.type === 'hostname_suggest') continue;
       const e = m.get(f.key) || { labels: new Set(), pages: new Set() }; e.labels.add(f.label); e.pages.add(defs[slug].title); m.set(f.key, e);
     }
     return [...m.entries()].map(([key, e]) => ({ value: key, label: `${key}  (${[...e.labels].join(' / ')} · ${[...e.pages].join(', ')})` }));

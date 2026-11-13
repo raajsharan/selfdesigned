@@ -76,6 +76,11 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${s.columns || 1}, minmax(0, 1fr))`, gap: '0 16px' }}>
             {s.items.map((it) => {
               const f = fields[it.key]; if (!f) return null;
+              if (f.type === 'hostname_suggest') return (
+                <Form.Item key={f.key} noStyle shouldUpdate>
+                  {() => (isVisible(f, form.getFieldsValue(true)) ? <div style={{ gridColumn: `span ${Math.min(it.span || 2, s.columns || 1)}` }}>
+                    {renderAfter ? renderAfter(f) : <div style={{ padding: 12, border: '1px dashed var(--border)', borderRadius: 8, marginBottom: 14, color: 'var(--muted)' }}>{f.label}: the suggested hostname appears here on the record form.</div>}</div> : null)}
+                </Form.Item>);
               return (
                 <Form.Item key={f.key} noStyle shouldUpdate>
                   {() => {

@@ -61,6 +61,7 @@ function pick(page, input) {
   const data = {}; const secrets = {}; const clear = [];
   for (const f of fieldsOf(page)) {
     const raw = input?.[f.key];
+    if (f.type === 'hostname_suggest') continue;   // computed on the form, never stored
     if (f.type === 'password') {
       if (typeof raw === 'string' && raw !== '') secrets[f.key] = encrypt(raw);
       else if (raw === null) clear.push(f.key);
@@ -157,7 +158,7 @@ function buildWhere(page, q) {
   const p = [page.id]; const w = ['r.page_id = $1', 'r.is_deleted = FALSE'];
   const show = q.show || 'active';
   if (show === 'active') w.push('r.is_decommissioned = FALSE'); else if (show === 'decommissioned') w.push('r.is_decommissioned = TRUE');
-  const keys = new Set(fieldsOf(page).filter((f) => f.type !== 'password').map((f) => f.key));
+  const keys = new Set(fieldsOf(page).filter((f) => !['password', 'hostname_suggest'].includes(f.type)).map((f) => f.key));
   for (const [k, v] of Object.entries(q)) {
     if (!k.startsWith('f_') || !keys.has(k.slice(2)) || v === '' || v === undefined) continue;
     p.push(k.slice(2), String(v)); w.push(`r.data->>$${p.length - 1} = $${p.length}`);
@@ -169,7 +170,7 @@ function buildWhere(page, q) {
 function orderBy(page, sort, order) {
   const dir = order === 'asc' ? 'ASC' : 'DESC';
   if (META_SORT[sort]) return `${META_SORT[sort]} ${dir}, r.id DESC`;
-  const f = fieldsOf(page).find((x) => x.key === sort && x.type !== 'password');
+  const f = fieldsOf(page).find((x) => x.key === sort && !['password', 'hostname_suggest'].includes(x.type));
   if (!f || !KEY_RE.test(f.key)) return 'r.updated_at DESC, r.id DESC';
   const expr = f.type === 'number' ? `CASE WHEN r.data->>'${f.key}' ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (r.data->>'${f.key}')::numeric END` : `r.data->>'${f.key}'`;   // key is validated by KEY_RE
   return `${expr} ${dir} NULLS LAST, r.id DESC`;
@@ -316,7 +317,7 @@ exports.bulk = async (req, res) => {
 };
 
 // ----------------------------------------------------------------------------------- export / import
-const plainFields = (page) => fieldsOf(page).filter((f) => f.type !== 'password');
+const plainFields = (page) => fieldsOf(page).filter((f) => !['password', 'hostname_suggest'].includes(f.type));
 
 exports.exportCsv = async (req, res) => {
   const { where, params } = buildWhere(req.page, { ...req.query, show: req.query.show || 'all' });
