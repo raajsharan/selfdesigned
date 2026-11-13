@@ -35,6 +35,17 @@ async function ensureSchema() {
     await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_records_active_ip ON inventory_records (ip_address)
                     WHERE ip_address IS NOT NULL AND ip_address <> '' AND is_deleted = FALSE AND is_decommissioned = FALSE`);
   } catch (e) { console.warn(`[schema] unique IP index not created (duplicate IP addresses already exist - see Admin > Data Health): ${e.message}`); }
+  // Starter Field Library entries, seeded once so a deleted one stays deleted.
+  if (!(await getSetting('seeded_field_library', {})).done) {
+    const starter = [
+      ['mac_address', { label: 'MAC Address', type: 'mac', role: 'mac', hint: 'Six pairs of hex digits, e.g. AA:BB:CC:DD:EE:FF' }],
+      ['secondary_mac_address', { label: 'Secondary MAC Address', type: 'mac', hint: 'For a second network card' }],
+      ['ip_address', { label: 'IP Address', type: 'ip', role: 'ip', hint: 'Must be unique across the whole inventory' }],
+      ['serial_number', { label: 'Serial Number', type: 'text' }],
+    ];
+    for (const [i, [key, def]] of starter.entries()) await db.query('INSERT INTO field_library (key, def, sort_order) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [key, JSON.stringify(def), i]);
+    await setSetting('seeded_field_library', { done: true });
+  }
   // Starter lists are seeded once, on a brand-new database. Seeding on every start brought back whatever an admin had deleted
   // in Dropdown Master. An existing install (it already has users or pages) is marked as seeded without adding anything.
   if (!(await getSetting('seeded_dropdowns', {})).done) {

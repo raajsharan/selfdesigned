@@ -1,12 +1,15 @@
-import { useState } from 'react';
-import { Alert, AutoComplete, Button, Checkbox, Input, Popconfirm, Radio, Select, Switch, Tag } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import { Alert, App, AutoComplete, Button, Checkbox, Input, Modal, Popconfirm, Radio, Select, Switch, Table, Tag } from 'antd';
+import { DeleteOutlined, PlusOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { Link } from 'react-router-dom';
+import api, { errMsg } from '../../../api/client';
+import { useAuth } from '../../../context/AuthContext';
 import { Draggable, DropZone, move } from '../../../components/dnd';
 import { keyFrom, rewriteKey, uid } from './util';
 
-const TYPE_LABEL = { text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', ip: 'IP address (x.x.x.x)', password: 'Password (encrypted)' };
+export const TYPE_LABEL = { mac: 'MAC address (AA:BB:CC:DD:EE:FF)', text: 'Text', textarea: 'Long text', number: 'Number', boolean: 'Yes / No', date: 'Date', select: 'Choice list', ip: 'IP address (x.x.x.x)', password: 'Password (encrypted)' };
 
-function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
+export function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
   const others = config.fields.filter((x) => x.key !== f.key);
   const usedRoles = new Set(others.filter((x) => x.role).map((x) => x.role));
   const cond = others.find((x) => x.key === f.showIf?.key);
@@ -58,8 +61,40 @@ function FieldBody({ f, i, config, set, meta, categories, locked, rename }) {
   );
 }
 
+/** Pick fields from the Field Library; each is copied into the page (a new key if the library key is taken, no role if the page already uses it). */
+function LibraryPicker({ open, onClose, config, setConfig, meta }) {
+  const { message } = App.useApp(); const { has } = useAuth();
+  const [rows, setRows] = useState(null); const [sel, setSel] = useState([]);
+  useEffect(() => { if (open) { setSel([]); api.get('/field-library').then((r) => setRows(r.data.fields)).catch((e) => { message.error(errMsg(e)); setRows([]); }); } }, [open, message]);
+  const have = new Set(config.fields.map((f) => f.key));
+  const add = () => {
+    setConfig((c) => {
+      const taken = new Set(c.fields.map((f) => f.key)); const roles = new Set(c.fields.filter((f) => f.role).map((f) => f.role)); const added = [];
+      for (const id of sel) {
+        const { id: _i, key, ...def } = rows.find((r) => r.id === id);   // eslint-disable-line no-unused-vars
+        const k = taken.has(key) ? keyFrom(key, taken) : key; taken.add(k);
+        if (def.role && roles.has(def.role)) delete def.role; else if (def.role) roles.add(def.role);
+        added.push({ ...def, key: k, _id: uid() });
+      }
+      return { ...c, fields: [...c.fields, ...added] };
+    });
+    message.success(`Added ${sel.length} field(s). Place them on the Form and Table tabs.`); onClose();
+  };
+  return (
+    <Modal open={open} title="Add fields from the Field Library" onCancel={onClose} onOk={add} okText={`Add ${sel.length || ''} field(s)`} okButtonProps={{ disabled: !sel.length }} width={680}>
+      <Table size="small" rowKey="id" loading={rows === null} dataSource={rows || []} pagination={false} scroll={{ y: 360 }}
+        locale={{ emptyText: has('admin-field-library') ? <span>No library fields yet. <Link to="/admin/field-library">Create some</Link>.</span> : 'No library fields yet.' }}
+        rowSelection={{ selectedRowKeys: sel, onChange: setSel }}
+        columns={[{ title: 'Field', render: (_, r) => <><b>{r.label}</b> <span className="mono" style={{ color: 'var(--muted-2)' }}>{r.key}</span></> },
+          { title: 'Type', dataIndex: 'type', render: (t) => TYPE_LABEL[t] || t },
+          { title: '', render: (_, r) => <>{r.role && <Tag color="blue">{meta.roles.find((x) => x.key === r.role)?.label}</Tag>}{r.required && <Tag color="red">required</Tag>}{have.has(r.key) && <Tag>key already on page</Tag>}</> }]} />
+      <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12 }}>Fields are copied: changing the library later does not change this page.</div>
+    </Modal>
+  );
+}
+
 export default function FieldsTab({ config, setConfig, meta, categories, lockedKeys }) {
-  const [open, setOpen] = useState(null);
+  const [open, setOpen] = useState(null); const [lib, setLib] = useState(false);
   const fields = config.fields;
   const add = () => setConfig((c) => { const key = keyFrom('New field', new Set(c.fields.map((f) => f.key))); setOpen(key); return { ...c, fields: [...c.fields, { key, label: 'New field', type: 'text', _auto: true, _id: uid() }] }; });
   const rename = (oldKey, newKey) => { if (!newKey || newKey === oldKey) return; setConfig((c) => rewriteKey(c, oldKey, newKey)); setOpen((o) => (o === oldKey ? newKey : o)); };
@@ -84,7 +119,8 @@ export default function FieldsTab({ config, setConfig, meta, categories, lockedK
           </div>
         </div>))}
       <DropZone accept={(d) => d.kind === 'field-order'} onDrop={(d) => reorder(d.index, fields.length)} style={{ height: 14 }} />
-      <Button icon={<PlusOutlined />} onClick={add}>Add field</Button>
+      <Button icon={<PlusOutlined />} onClick={add}>Add field</Button> <Button icon={<DatabaseOutlined />} onClick={() => setLib(true)}>Add from Field Library</Button>
+      <LibraryPicker open={lib} onClose={() => setLib(false)} config={config} setConfig={setConfig} meta={meta} />
     </div>
   );
 }

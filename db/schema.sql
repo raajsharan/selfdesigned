@@ -278,3 +278,13 @@ CREATE TABLE IF NOT EXISTS me_agent_status (
   check_error     TEXT,
   UNIQUE (source, asset_id)
 );
+
+-- Field Library: reusable field definitions the Page Designer can copy into a page (the copy is independent of the library afterwards).
+CREATE TABLE IF NOT EXISTS field_library (
+  id          SERIAL PRIMARY KEY,
+  key         VARCHAR(41) UNIQUE NOT NULL,
+  def         JSONB NOT NULL,                  -- {label, type, role?, required?, unique?, hint?, options? | optionsCategory?}
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

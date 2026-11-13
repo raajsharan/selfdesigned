@@ -44,6 +44,7 @@ function coerce(f, v) {
       if (!/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/.test(s)) throw bad(`${f.label} must be an IP address like 192.168.1.1`);
       return s;
     }
+    case 'mac': return normalizeMac(String(v).trim());
     default: { const s = String(v).trim().slice(0, f.type === 'textarea' ? 5000 : 255); return f.role === 'mac' ? normalizeMac(s) : s; }
   }
 }

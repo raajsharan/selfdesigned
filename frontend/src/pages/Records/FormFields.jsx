@@ -52,6 +52,7 @@ function Control({ f, dropdowns, disabled, extra, ...p }) {
     }
     case 'password': return <Input.Password {...p} autoComplete="new-password" disabled={disabled} placeholder={extra?.hasSecret ? 'Stored. Type to replace.' : ''} />;
     case 'ip': return <Input {...p} placeholder="192.168.1.1" inputMode="decimal" maxLength={15} disabled={disabled} suffix={IP_RULE.pattern.test(p.value || '') ? <span className="ip-ok"><CheckOutlined /> Valid IPv4</span> : null} />;
+    case 'mac': return <Input {...p} placeholder="AA:BB:CC:DD:EE:FF" maxLength={17} disabled={disabled} />;
     default: return <Input {...p} maxLength={255} disabled={disabled} />;
   }
 }
@@ -81,7 +82,7 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
                     if (!isVisible(f, form.getFieldsValue(true))) return null;
                     const rules = [];
                     if (f.required && f.type !== 'boolean' && !(f.type === 'password' && secretKeys.includes(f.key))) rules.push({ required: true, message: `${f.label} is required` });
-                    if (f.role === 'mac') rules.push(MAC_RULE);
+                    if (f.role === 'mac' || f.type === 'mac') rules.push(MAC_RULE);
                     if (f.type === 'ip') rules.push(IP_RULE);
                     if (f.type === 'ip' || f.role === 'ip') {
                       // Inventory-wide: an IP address may be on only one active record, on any page.

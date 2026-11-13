@@ -32,6 +32,7 @@ api.use('/auth', require('./authRoutes'));
 api.use('/users', require('./userRoutes'));
 api.use('/roles', require('./rolesRoutes'));
 
+api.use('/field-library', require('./fieldLibraryRoutes'));
 api.use('/pages', pageRoutes.designer);          // designing pages
 api.use('/p/:slug', pageRoutes.data);            // records / rows of one designed page
 api.use('/vmware', buildDiscoveryRouter('vmware'));

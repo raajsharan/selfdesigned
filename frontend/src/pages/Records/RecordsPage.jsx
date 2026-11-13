@@ -52,7 +52,7 @@ export default function RecordsPage({ page }) {
           if (f.type === 'boolean') return v ? 'Yes' : 'No';
           if (f.type === 'date') return dayjs(v).format('D MMM YYYY');
           if (f.role === 'status') return <Tag color={statusColor(String(v))}>{v}</Tag>;
-          if (f.role === 'mac') return <span className="mono">{v}</span>;
+          if (f.role === 'mac' || f.type === 'mac') return <span className="mono">{v}</span>;
           return String(v);
         } };
     });

@@ -2,7 +2,7 @@ import {
   DashboardOutlined, LayoutOutlined, StopOutlined, DeleteOutlined, SearchOutlined,
   SwapOutlined, SafetyCertificateOutlined, AppstoreOutlined, ToolOutlined, CloudOutlined, ClusterOutlined, BarChartOutlined,
   HeartOutlined, DiffOutlined, TeamOutlined, UserSwitchOutlined, SettingOutlined, FormOutlined, UnorderedListOutlined, BellOutlined,
-  SaveOutlined, AuditOutlined, BgColorsOutlined, ControlOutlined, ProfileOutlined, NumberOutlined, ApiOutlined,
+  SaveOutlined, AuditOutlined, BgColorsOutlined, ControlOutlined, ProfileOutlined, NumberOutlined, ApiOutlined, DatabaseOutlined,
 } from '@ant-design/icons';
 
 // key = page key used by the backend for access control.
@@ -30,6 +30,7 @@ export const NAV = [
     { key: 'reconcile', label: 'Reconcile', path: '/reconcile', icon: DiffOutlined },
   ] },
   { group: 'Administration', items: [
+    { key: 'admin-field-library', label: 'Field Library', path: '/admin/field-library', icon: DatabaseOutlined },
     { key: 'admin-users', label: 'Users', path: '/admin/users', icon: TeamOutlined },
     { key: 'admin-roles', label: 'Roles', path: '/admin/roles', icon: UserSwitchOutlined },
     { key: 'admin-user-page-control', label: 'User Page Control', path: '/admin/user-page-control', icon: ControlOutlined },

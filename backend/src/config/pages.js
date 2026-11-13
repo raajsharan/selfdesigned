@@ -2,7 +2,7 @@
 const PAGES = [
   'dashboard', 'decommissioned', 'recycle-bin', 'search', 'migration', 'endpoint-central', 'software-status', 'nessus-status',
   'tenable', 'vmware', 'proxmox', 'weekly-report', 'data-health', 'reconcile',
-  'admin-users', 'admin-roles', 'admin-user-page-control', 'admin-pages', 'admin-dropdowns',
+  'admin-users', 'admin-roles', 'admin-user-page-control', 'admin-pages', 'admin-field-library', 'admin-dropdowns',
   'admin-tag-ranges', 'admin-compliance', 'admin-teams', 'admin-migration-config', 'admin-endpoint-central',
   'admin-backup', 'admin-audit', 'admin-branding', 'admin-nav-order',
 ];
