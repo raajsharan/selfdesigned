@@ -9,6 +9,7 @@ const rename = require('../services/hostnameRenameService');
 const SEGMENTS = ['site', 'os', 'team', 'tier', 'tag'];
 const DEFAULTS = {
   order: SEGMENTS, type_field: 'asset_type', types: ['VM', 'ESXi', 'Desktop', 'Physical Server', 'Bare Metal Server'], sites: {},
+  team_map: {},                        // department value -> team code (blank = guess from the name)
   suggest_pages: null,                 // null = every records page with a Hostname field; otherwise the page slugs
   rename_pages: [],                    // pages whose form may apply the hostname to the host with Ansible
   tier_field: '', allow_reboot: true, login_user_fields: '', login_pass_fields: '',   // blank = find the login fields on the page automatically
@@ -22,8 +23,9 @@ const CODE_RE = /^[A-Za-z0-9]{1,8}$/;
 async function load() {
   const cfg = await getSetting('hostname_pattern', DEFAULTS);
   const { rows } = await db.query("SELECT value FROM dropdown_values WHERE category = 'location' ORDER BY sort_order, value");
+  const departments = (await db.query("SELECT value FROM dropdown_values WHERE category = 'department' ORDER BY sort_order, value")).rows.map((r) => r.value);
   const pages = (await svc.listPages()).filter((p) => p.kind === 'records').map((p) => ({ slug: p.slug, title: p.title }));
-  return { ...cfg, locations: rows.map((r) => r.value), pages };
+  return { ...cfg, locations: rows.map((r) => r.value), departments, pages };
 }
 exports.renameJob = (req, res) => res.json(rename.getJob(req));
 exports.get = async (req, res) => res.json(await load());
@@ -56,6 +58,8 @@ exports.put = async (req, res) => {
     tier_field: /^[a-z][a-z0-9_]{0,40}$/.test(String(b.tier_field || '')) ? String(b.tier_field) : '',
     login_user_fields: String(b.login_user_fields || '').trim().slice(0, 200), login_pass_fields: String(b.login_pass_fields || '').trim().slice(0, 200),
     sites, teams: codeList(b.teams, 'Team codes'), tiers: codeList(b.tiers, 'Tier codes') };
+  const teamCodes = new Set(value.teams.map((t) => t.code));
+  value.team_map = Object.fromEntries(Object.entries(b.team_map || {}).filter(([d, c]) => d && teamCodes.has(String(c).toUpperCase())).map(([d, c]) => [String(d).slice(0, 255), String(c).toUpperCase()]));
   await setSetting('hostname_pattern', value);
   audit(req, 'update', 'hostname_pattern', null, { name: 'Hostname naming pattern' });
   res.json(await load());

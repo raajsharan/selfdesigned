@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Checkbox, Select, Switch, Tag } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 
@@ -30,7 +30,7 @@ export const SEGMENT_LABEL = { site: 'Site', os: 'OS', team: 'Department (Team)'
 export default function HostnameHelper({ pattern, cfg, values, onUse, canApply, onApply, label = 'Suggested hostname' }) {
   const role = (r) => hostField(cfg, r)?.key;
   const loc = values[role('location')]; const os = values[role('os')]; const tag = values[role('asset_tag')]; const dept = values[role('department')];
-  const [team, setTeam] = useState(); const [tier, setTier] = useState(); const teamTouched = useRef(false);   // a manual Team choice is never overwritten by the guess
+  const [team, setTeam] = useState(); const [tier, setTier] = useState(); 
   const [apply, setApply] = useState(false); const [reboot, setReboot] = useState(true);
   useEffect(() => { onApply?.(apply ? { reboot } : null); }, [apply, reboot]); // eslint-disable-line react-hooks/exhaustive-deps
   const tierVal = pattern.tier_field ? values[pattern.tier_field] : undefined;
@@ -39,12 +39,13 @@ export default function HostnameHelper({ pattern, cfg, values, onUse, canApply, 
     const t = String(tierVal).toLowerCase(); const hit = pattern.tiers.find((x) => x.code.toLowerCase() === t || x.label.toLowerCase() === t);
     if (hit) setTier(hit.code);
   }, [tierVal]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {   // pre-fill the team from the department name
-    if (!dept) return;
-    const d = String(dept).toLowerCase();
-    const hit = pattern.teams.find((t) => t.label.toLowerCase() === d || t.code.toLowerCase() === d);
-    const code = hit ? hit.code : guessTeam(dept, pattern.teams);
-    if (code && !teamTouched.current) setTeam(code);
+  // The Team follows the Department every time it changes: the mapping set in Hostname Naming first, then the same name, then the keyword guess.
+  // Choosing a Team by hand sticks only until the Department is changed again.
+  useEffect(() => {
+    if (!dept) { setTeam(undefined); return; }
+    const d = String(dept).toLowerCase(); const mapped = (pattern.team_map || {})[dept];
+    const hit = pattern.teams.find((t) => t.code === mapped) || pattern.teams.find((t) => t.label.toLowerCase() === d || t.code.toLowerCase() === d);
+    setTeam(hit ? hit.code : guessTeam(dept, pattern.teams) || undefined);
   }, [dept]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (pattern.type_field && pattern.types.length) {   // only for the chosen asset types (a page without that field is not filtered)
@@ -54,13 +55,13 @@ export default function HostnameHelper({ pattern, cfg, values, onUse, canApply, 
   const parts = { site: pattern.sites[loc], os: osLetter(os), team, tier, tag: tagPart(tag) };
   const missing = pattern.order.filter((s) => !parts[s]);
   const text = pattern.order.map((s) => parts[s]).join('');
-  const hintFor = { site: loc ? `no site code for "${loc}" (Administration > Hostname Naming)` : 'choose a Location', os: os ? 'OS not recognised' : 'choose an OS', team: 'pick a Team', tier: 'pick a Tier', tag: 'needs an Asset tag with digits' };
+  const hintFor = { site: loc ? `no site code for "${loc}" (Administration > Hostname Naming)` : 'choose a Location', os: os ? 'OS not recognised' : 'choose an OS', team: dept ? `no Team matches the department "${dept}": pick one (or map it in Hostname Naming)` : 'choose a Department', tier: 'pick a Tier', tag: 'needs an Asset tag with digits' };
   return (
     <div className="hn-panel" style={{ margin: '-4px 0 14px', padding: 12, border: '1px dashed var(--border)', borderRadius: 8 }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}><ThunderboltOutlined /> {label}</div>
       {values[role('hostname')] && <div style={{ color: 'var(--muted)', marginBottom: 8 }}>Currently in the form: <span className="mono">{values[role('hostname')]}</span></div>}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <Select allowClear style={{ minWidth: 220 }} placeholder="Team" value={team} onChange={(v) => { teamTouched.current = true; setTeam(v); }} options={pattern.teams.map((t) => ({ value: t.code, label: `${t.code} · ${t.label}` }))} />
+        <Select allowClear style={{ minWidth: 220 }} placeholder="Team (follows Department)" value={team} onChange={setTeam} options={pattern.teams.map((t) => ({ value: t.code, label: `${t.code} · ${t.label}` }))} />
         <Select allowClear style={{ minWidth: 200 }} placeholder="Tier" value={tier} onChange={setTier} options={pattern.tiers.map((t) => ({ value: t.code, label: `${t.code} · ${t.label}` }))} />
       </div>
       {missing.length ? <span style={{ color: 'var(--muted)' }}>{missing.map((s) => <Tag key={s}>{SEGMENT_LABEL[s]}: {hintFor[s]}</Tag>)}</span>

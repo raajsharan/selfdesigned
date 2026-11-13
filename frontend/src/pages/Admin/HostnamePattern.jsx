@@ -51,7 +51,7 @@ export default function HostnamePattern() {
   };
   const save = async () => {
     setSaving(true);
-    try { const { locations, pages, ...body } = c; const r = await api.put('/hostname-pattern', body); setC(r.data); message.success('Saved'); } catch (e) { message.error(errMsg(e)); } finally { setSaving(false); }
+    try { const { locations, pages, departments, ...body } = c; const r = await api.put('/hostname-pattern', body); setC(r.data); message.success('Saved'); } catch (e) { message.error(errMsg(e)); } finally { setSaving(false); }
   };
   const addLoc = async () => {
     if (!loc.trim()) return;
@@ -106,6 +106,14 @@ export default function HostnamePattern() {
           <Button type="primary" icon={<PlusOutlined />} onClick={addLoc}>Add Location</Button></div>
       </Card>
       <Card style={{ marginBottom: 16 }}><H title="Team codes" sub="Offered in the Team select, and pre-filled by matching the department name." /><CodeList list={c.teams} what="team" onChange={(teams) => set({ teams })} /></Card>
+      <Card style={{ marginBottom: 16 }}>
+        <H title="Department to Team" sub="Picking a Department on a record selects its Team here automatically. A Department left blank is matched by name (for example IT Team to ITO), and can still be changed by hand on the record." />
+        {(c.departments || []).map((d) => (
+          <div key={d} style={row}><span style={{ width: 220 }}>{d}</span>
+            <Select allowClear style={{ width: 300 }} placeholder="Match by name" value={(c.team_map || {})[d]} onChange={(v) => set({ team_map: { ...(c.team_map || {}), [d]: v } })}
+              options={c.teams.map((t) => ({ value: t.code, label: `${t.code} · ${t.label}` }))} /></div>))}
+        {!(c.departments || []).length && <div style={{ color: 'var(--muted)' }}>No departments yet. Add them in Dropdown Master (category department).</div>}
+      </Card>
       <Card style={{ marginBottom: 16 }}><H title="Tier codes" sub="Production / Staging / Development / etc." /><CodeList list={c.tiers} what="tier" onChange={(tiers) => set({ tiers })} /></Card>
     </div>
   );
