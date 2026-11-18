@@ -38,6 +38,9 @@ module.exports = (typeKey) => {
   r.get('/topology', h(c.topology));
   r.get('/snapshots', h(c.snapshots));
   r.get('/stale', h(c.stale));
+  r.get('/filled', query('page').optional().isInt({ min: 1 }), query('pageSize').optional().isInt({ min: 1, max: 500 }), query('ip').optional().isIn(['missing', 'mapped', 'discovered']), validate, h(c.filled));
+  r.get('/filled/csv', query('ip').optional().isIn(['missing', 'mapped', 'discovered']), validate, h(c.filledCsv));
+  r.post('/filled/apply', body('server_id').optional().isInt({ min: 1 }), validate, h(c.filledApply));
   r.get('/mac-lookup', query('mac').isString().isLength({ min: 6, max: 40 }), validate, h(c.macLookup));
   return r;
 };

@@ -98,3 +98,42 @@ exports.lookup = async (key) => (await db.query(
   `SELECT DISTINCT ON (e.mac_key) e.mac, e.ip, e.lan_segment, e.vlan_group, e.data_retrieved, f.filename, f.uploaded_at
    FROM mac_mapping_entries e JOIN mac_mapping_files f ON f.id = e.file_id WHERE e.mac_key LIKE $1
    ORDER BY e.mac_key, f.uploaded_at DESC, f.id DESC LIMIT 200`, [`%${key}%`])).rows;
+
+const macKeyOf = (m) => String(m || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+
+/** mac_key -> { ip, lan_segment, vlan_group, filename } for these MAC addresses; the newest file wins. */
+exports.lookupMacs = async (macs) => {
+  const keys = [...new Set(macs.map(macKeyOf).filter((k) => k.length === 12))];
+  if (!keys.length) return new Map();
+  const { rows } = await db.query(
+    `SELECT DISTINCT ON (e.mac_key) e.mac_key, e.ip, e.lan_segment, e.vlan_group, f.filename FROM mac_mapping_entries e JOIN mac_mapping_files f ON f.id = e.file_id
+     WHERE e.mac_key = ANY($1::text[]) ORDER BY e.mac_key, f.uploaded_at DESC, f.id DESC`, [keys]);
+  return new Map(rows.map((r) => [r.mac_key, r]));
+};
+exports.macKeyOf = macKeyOf;
+
+/**
+ * Fills the empty IP addresses of discovered VMs from the MAC mapping files, and keeps earlier fills current (an IP that came from the mapping
+ * follows the mapping: changed when a newer file says otherwise, removed when no file knows the MAC any more). A discovered IP is never touched.
+ * `table` is a trusted constant ('vmware_vms' | 'proxmox_vms'). Resolves to { filled, changed, cleared }.
+ */
+exports.fillVmIps = async (table, serverId) => {
+  const where = serverId ? 'AND server_id = $1' : '';
+  const { rows } = await db.query(
+    `SELECT id, ip_address, ip_source, mac_addresses FROM ${table}
+     WHERE (ip_address IS NULL OR ip_address = '' OR ip_source = 'mac_mapping') AND cardinality(mac_addresses) > 0 ${where}`, serverId ? [serverId] : []);
+  if (!rows.length) return { filled: 0, changed: 0, cleared: 0 };
+  const map = await exports.lookupMacs(rows.flatMap((r) => r.mac_addresses));
+  const set = []; const clear = []; let filled = 0; let changed = 0;
+  for (const r of rows) {
+    const hit = r.mac_addresses.map((m) => map.get(macKeyOf(m))).find(Boolean);
+    if (hit) { if (r.ip_address !== hit.ip) { set.push([r.id, hit.ip]); if (r.ip_source === 'mac_mapping') changed++; else filled++; } }
+    else if (r.ip_source === 'mac_mapping') clear.push(r.id);
+  }
+  for (let i = 0; i < set.length; i += 1000) {
+    const b = set.slice(i, i + 1000);
+    await db.query(`UPDATE ${table} v SET ip_address = t.ip, ip_source = 'mac_mapping' FROM unnest($1::bigint[], $2::text[]) AS t(id, ip) WHERE v.id = t.id`, [b.map((x) => x[0]), b.map((x) => x[1])]);
+  }
+  if (clear.length) await db.query(`UPDATE ${table} SET ip_address = NULL, ip_source = NULL WHERE id = ANY($1::bigint[])`, [clear]);
+  return { filled, changed, cleared: clear.length };
+};

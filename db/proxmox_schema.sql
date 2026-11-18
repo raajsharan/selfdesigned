@@ -41,3 +41,6 @@ CREATE TABLE IF NOT EXISTS proxmox_snapshots (
   description TEXT,
   created_at  TIMESTAMPTZ
 );
+
+-- 'mac_mapping' when the IP was filled from the uploaded MAC mapping files instead of being discovered.
+ALTER TABLE proxmox_vms ADD COLUMN IF NOT EXISTS ip_source VARCHAR(16);

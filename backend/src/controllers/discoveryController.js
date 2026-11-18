@@ -15,7 +15,7 @@ const TYPES = {
   vmware: {
     serversTable: 'vmware_servers', vmsTable: 'vmware_vms', snapTable: 'vmware_snapshots', secretCol: 'password_encrypted', secretField: 'password',
     serverCols: ['name', 'host', 'username', 'verify_ssl', 'is_standalone_esxi', 'enabled'],
-    view: `SELECT v.id, v.server_id, s.name AS server_name, v.moid AS ref, v.name, v.power_state AS state, v.ip_address, v.mac_addresses, v.guest_os AS os,
+    view: `SELECT v.id, v.server_id, s.name AS server_name, v.moid AS ref, v.name, v.power_state AS state, v.ip_address, v.ip_source, v.mac_addresses, v.guest_os AS os,
       v.cpu_count, v.memory_mb, v.host_name AS host, v.cluster, v.datacenter, v.snapshot_count, v.last_seen, v.tools_status AS extra,
       (v.power_state = 'POWERED_OFF') AS is_off, ${MISSING} AS is_missing, FALSE AS is_template, v.folder
       FROM vmware_vms v JOIN vmware_servers s ON s.id = v.server_id`,
@@ -24,7 +24,7 @@ const TYPES = {
   proxmox: {
     serversTable: 'proxmox_servers', vmsTable: 'proxmox_vms', snapTable: 'proxmox_snapshots', secretCol: 'token_secret_encrypted', secretField: 'token_secret',
     serverCols: ['name', 'host', 'port', 'token_id', 'verify_ssl', 'enabled'],
-    view: `SELECT v.id, v.server_id, s.name AS server_name, v.vmid::text AS ref, v.name, v.status AS state, v.ip_address, v.mac_addresses, v.os_type AS os,
+    view: `SELECT v.id, v.server_id, s.name AS server_name, v.vmid::text AS ref, v.name, v.status AS state, v.ip_address, v.ip_source, v.mac_addresses, v.os_type AS os,
       v.cpu_count, v.memory_mb, v.node AS host, NULL::text AS cluster, s.name AS datacenter, v.snapshot_count, v.last_seen, v.type AS extra,
       (v.status = 'stopped') AS is_off, ${MISSING} AS is_missing, v.is_template, NULL::text AS folder
       FROM proxmox_vms v JOIN proxmox_servers s ON s.id = v.server_id`,
@@ -179,6 +179,65 @@ module.exports = function buildDiscoveryController(typeKey) {
     res.json({ discovered: disc, inventory: inv, mapping: await require('./macMappingController').lookup(key) });
   };
 
+  // ---- "Filled" tab: Name, Status, IP, MAC, OS version, host IP. A VM without an IP gets it from the uploaded MAC mapping files.
+  const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+  const filledRows = async (req, q, limit, offset) => {
+    const { sql, p } = where(q); const w = [sql, 'NOT is_template'];
+    const empty = "(ip_address IS NULL OR ip_address = '')";
+    if (q.ip === 'missing') w.push(empty); else if (q.ip === 'mapped') w.push("ip_source = 'mac_mapping'"); else if (q.ip === 'discovered') w.push(`NOT ${empty} AND ip_source IS NULL`);
+    const base = `FROM (${T.view}) t WHERE ${w.join(' AND ')}`;
+    const total = (await db.query(`SELECT COUNT(*)::int n ${base}`, p)).rows[0].n;
+    const rows = (await db.query(`SELECT * ${base} ORDER BY lower(name)${limit ? ` LIMIT ${limit} OFFSET ${offset}` : ''}`, p)).rows;
+
+    // Not saved yet (discovery has not run since the file was uploaded, nobody pressed Update): show what the mapping says, marked as pending.
+    const map = await require('./macMappingController').lookupMacs(rows.filter((r) => !r.ip_address).flatMap((r) => r.mac_addresses || []));
+    const mk = require('./macMappingController').macKeyOf;
+
+    // Host IP: the host name when it is an IP; else the IP of the inventory record of that host (pages this user may open); else the server's address for a standalone host.
+    const recs = (await db.query(`SELECT p.slug, r.hostname, r.vm_name, r.ip_address FROM inventory_records r JOIN inventory_pages p ON p.id = r.page_id
+      WHERE r.is_deleted = FALSE AND r.is_decommissioned = FALSE AND r.ip_address IS NOT NULL`)).rows.filter((r) => req.user.pages.has(pageKey(r.slug)));
+    const byName = new Map(); const byShort = new Map(); const short = (s) => String(s || '').toLowerCase().split('.')[0];
+    for (const r of recs) for (const n of [r.hostname, r.vm_name]) if (n) { byName.set(String(n).toLowerCase(), r.ip_address); byShort.set(short(n), r.ip_address); }
+    const servers = new Map((await db.query(`SELECT id, host${typeKey === 'vmware' ? ', is_standalone_esxi' : ''} FROM ${T.serversTable}`)).rows.map((s) => [s.id, s]));
+    const nodes = typeKey === 'proxmox' ? new Map((await db.query(`SELECT server_id, COUNT(DISTINCT host)::int n FROM (${T.view}) t GROUP BY server_id`)).rows.map((r) => [r.server_id, r.n])) : null;
+    const hostIp = (v) => {
+      const h = v.host; if (!h) return null; if (IPV4.test(h)) return h;
+      const r = byName.get(String(h).toLowerCase()) || byShort.get(short(h)); if (r) return r;
+      const s = servers.get(v.server_id);
+      if (s && ((typeKey === 'vmware' && s.is_standalone_esxi) || (typeKey === 'proxmox' && nodes.get(v.server_id) === 1))) return s.host;
+      return null;
+    };
+    const out = rows.map((v) => {
+      let ip = v.ip_address || null; let source = v.ip_source === 'mac_mapping' ? 'mac_mapping' : ip ? 'discovered' : null; let pending = false;
+      if (!ip) { const hit = (v.mac_addresses || []).map((m) => map.get(mk(m))).find(Boolean); if (hit) { ip = hit.ip; source = 'mac_mapping'; pending = true; } }
+      return { id: v.id, name: v.name, state: v.state, is_off: v.is_off, ip_address: ip, ip_source: source, pending, mac_addresses: v.mac_addresses || [], os: v.os, host: v.host, host_ip: hostIp(v), server_name: v.server_name };
+    });
+    return { rows: out, total };
+  };
+
+  const filled = async (req, res) => {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(500, Math.max(1, parseInt(req.query.pageSize, 10) || 50));
+    const { rows, total } = await filledRows(req, req.query, pageSize, (page - 1) * pageSize);
+    const [s] = (await db.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE ip_source IS NULL AND ip_address <> '' AND ip_address IS NOT NULL)::int AS discovered,
+      COUNT(*) FILTER (WHERE ip_source = 'mac_mapping')::int AS from_mapping, COUNT(*) FILTER (WHERE ip_address IS NULL OR ip_address = '')::int AS missing FROM (${T.view}) t WHERE NOT is_template`)).rows;
+    res.json({ rows, total, page, pageSize, summary: s, pending: rows.filter((r) => r.pending).length });
+  };
+
+  const filledApply = async (req, res) => {
+    const r = await require('./macMappingController').fillVmIps(T.vmsTable, req.body && req.body.server_id ? parseInt(req.body.server_id, 10) : null);
+    audit(req, 'fill_ips', typeKey, null, r);
+    res.json(r);
+  };
+
+  const filledCsv = async (req, res) => {
+    const { rows } = await filledRows(req, req.query, 50000, 0);
+    audit(req, 'export', `${typeKey}_filled`, null, { rows: rows.length });
+    sendCsv(res, `${typeKey}-filled-${new Date().toISOString().slice(0, 10)}.csv`,
+      [['name', 'Name'], ['status', 'Status'], ['ip_address', 'IP Address'], ['ip_from', 'IP from'], ['mac', 'MAC'], ['os', 'OS Version'], ['host_ip', 'Host IP Address'], ['host', 'Host'], ['server_name', 'Server']].map(([key, label]) => ({ key, label })),
+      rows.map((r) => ({ ...r, status: (r.state || '').replace('POWERED_', '').toLowerCase(), ip_from: r.ip_source === 'mac_mapping' ? 'MAC mapping' : r.ip_source ? 'discovery' : '', mac: r.mac_addresses.join(' ') })));
+  };
+
   const addToInventory = async (req, res) => {
     const { rows } = await db.query(`SELECT * FROM (${T.view}) t WHERE id = $1`, [req.params.id]);
     const v = rows[0];
@@ -229,5 +288,5 @@ module.exports = function buildDiscoveryController(typeKey) {
     res.json({ ok: true });
   };
 
-  return { servers, discover, list, exportCsv, dashboard, drift, topology, snapshots, stale, macLookup, addToInventory, schedule, editVm };
+  return { servers, discover, list, exportCsv, dashboard, drift, topology, snapshots, stale, macLookup, filled, filledApply, filledCsv, addToInventory, schedule, editVm };
 };

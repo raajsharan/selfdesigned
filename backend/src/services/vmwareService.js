@@ -104,6 +104,7 @@ async function discover(serverId) {
           `INSERT INTO vmware_vms (server_id, moid, name, power_state, ip_address, mac_addresses, guest_os, cpu_count, memory_mb, host_name, cluster, datacenter, folder, tools_status, snapshot_count, last_seen)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now())
            ON CONFLICT (server_id, moid) DO UPDATE SET name = EXCLUDED.name, power_state = EXCLUDED.power_state, ip_address = COALESCE(EXCLUDED.ip_address, vmware_vms.ip_address),
+             ip_source = CASE WHEN EXCLUDED.ip_address IS NOT NULL THEN NULL ELSE vmware_vms.ip_source END,
              mac_addresses = EXCLUDED.mac_addresses, guest_os = COALESCE(EXCLUDED.guest_os, vmware_vms.guest_os), cpu_count = EXCLUDED.cpu_count, memory_mb = EXCLUDED.memory_mb,
              host_name = EXCLUDED.host_name, cluster = EXCLUDED.cluster, datacenter = EXCLUDED.datacenter, folder = EXCLUDED.folder, last_seen = now()`,
           [serverId, v.moid, v.name, v.power_state, v.ip_address, v.mac_addresses, v.guest_os, v.cpu_count, v.memory_mb, v.host_name, v.cluster, v.datacenter, v.folder, v.tools_status, v.snapshot_count]);
@@ -123,6 +124,7 @@ async function discover(serverId) {
       }
       await c.query('UPDATE vmware_servers SET last_discovery_at = now(), last_error = NULL WHERE id = $1', [serverId]);
     });
+    try { await require('../controllers/macMappingController').fillVmIps('vmware_vms', serverId); } catch (e) { console.error('[vmware] MAC mapping fill failed:', e.message); }
     return { server: server.name, vms: vms.length, hosts: hosts.length };
   } catch (e) {
     await db.query('UPDATE vmware_servers SET last_error = $2 WHERE id = $1', [serverId, String(e.message).slice(0, 500)]);

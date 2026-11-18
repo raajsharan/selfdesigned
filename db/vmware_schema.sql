@@ -68,3 +68,6 @@ CREATE TABLE IF NOT EXISTS vmware_host_stats (
   collected_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (server_id, moid)
 );
+
+-- 'mac_mapping' when the IP was filled from the uploaded MAC mapping files instead of being discovered.
+ALTER TABLE vmware_vms ADD COLUMN IF NOT EXISTS ip_source VARCHAR(16);

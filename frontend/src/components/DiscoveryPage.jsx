@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Input, InputNumber, Popover, Progress, Select, Space, Switch, Table, Tabs, Tag, Tree } from 'antd';
-import { CloudSyncOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Input, InputNumber, Popconfirm, Popover, Progress, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Tree } from 'antd';
+import { CloudSyncOutlined, DownloadOutlined, PlusOutlined, SyncOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api, { download, errMsg } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +37,53 @@ function MacCell({ macs }) {
         <a style={{ marginLeft: 8 }} onClick={(e) => e.stopPropagation()}>+{rest.length} more</a>
       </Popover>)}</span>
   );
+}
+
+/**
+ * "Filled" tab: Name, Status, IP Address, MAC, OS Version and Host IP Address of every VM. A VM that has no IP gets it from the uploaded MAC mapping files
+ * (Administration > MAC Mapping): after each discovery, and with the Update button. Rows marked "pending" show the mapped IP before it is saved.
+ */
+function FilledTab({ type, servers }) {
+  const { message } = App.useApp(); const { canWrite } = useAuth();
+  const [d, setD] = useState(null); const [loading, setLoading] = useState(false); const [applying, setApplying] = useState(false);
+  const [f, setF] = useState({ q: '', server_id: undefined, ip: undefined }); const [page, setPage] = useState(1); const [size, setSize] = useState(50);
+  const load = useCallback(() => {
+    setLoading(true);
+    const params = { page, pageSize: size, ...Object.fromEntries(Object.entries(f).filter(([, v]) => v)) };
+    return api.get(`/${type}/filled`, { params }).then((r) => setD(r.data)).catch((e) => message.error(errMsg(e))).finally(() => setLoading(false));
+  }, [type, f, page, size, message]);
+  useEffect(() => { load(); }, [load]);
+  const set = (patch) => { setPage(1); setF((x) => ({ ...x, ...patch })); };
+  const apply = async () => {
+    setApplying(true);
+    try { const r = (await api.post(`/${type}/filled/apply`, {})).data; message.success(`${r.filled} IP address(es) filled from the MAC mapping${r.changed ? `, ${r.changed} updated` : ''}${r.cleared ? `, ${r.cleared} removed (no longer in any file)` : ''}`); load(); }
+    catch (e) { message.error(errMsg(e)); } finally { setApplying(false); }
+  };
+  const s = d?.summary;
+  return (<>
+    {s && <div className="stat-grid"><Stat label="VMs" value={s.total} /><Stat label="IP from discovery" value={s.discovered} /><Stat label="IP from MAC mapping" value={s.from_mapping} tone={s.from_mapping ? 'good' : ''} /><Stat label="Still without IP" value={s.missing} tone={s.missing ? 'warn' : 'good'} /></div>}
+    {d?.pending > 0 && <Alert type="info" showIcon style={{ marginBottom: 12 }} message={`${d.pending} VM(s) on this page can get an IP from the MAC mapping files.`} description={canWrite ? 'They are shown below as pending. Press "Update from MAC mapping" to save them (it also happens after every discovery).' : 'They are saved after the next discovery, or when someone with write access presses Update.'} />}
+    <div className="toolbar">
+      <Input.Search allowClear placeholder="Search name, IP, MAC, OS" style={{ width: 260 }} onSearch={(q) => set({ q })} />
+      <Select allowClear placeholder="Server" style={{ width: 170 }} options={servers.map((x) => ({ value: x.id, label: x.name }))} onChange={(v) => set({ server_id: v })} />
+      <Select allowClear placeholder="IP address" style={{ width: 190 }} onChange={(v) => set({ ip: v })} options={[{ value: 'missing', label: 'Without an IP' }, { value: 'mapped', label: 'Filled from MAC mapping' }, { value: 'discovered', label: 'Discovered' }]} />
+      <div className="grow" />
+      {canWrite && <Popconfirm title="Fill empty IP addresses from the MAC mapping files?" description="VMs without a discovered IP get the IP of their MAC address from the uploaded files. Discovered IPs are never changed." okText="Update" onConfirm={apply}>
+        <Button icon={<SyncOutlined />} loading={applying}>Update from MAC mapping</Button></Popconfirm>}
+      <Button icon={<DownloadOutlined />} onClick={() => download(`/${type}/filled/csv`, `${type}-filled.csv`, Object.fromEntries(Object.entries(f).filter(([, v]) => v)))}>Export CSV</Button>
+    </div>
+    <Table rowKey="id" size="small" loading={loading} dataSource={d?.rows || []} scroll={{ x: 'max-content' }}
+      pagination={{ current: page, pageSize: size, total: d?.total || 0, showSizeChanger: true, pageSizeOptions: [20, 50, 100, 200], onChange: (p, sz) => { setPage(p); setSize(sz); } }}
+      columns={[
+        { title: 'Name', dataIndex: 'name', render: (v) => <b>{v}</b> },
+        { title: 'Status', dataIndex: 'state', render: (v) => stateTag(v) },
+        { title: 'IP Address', dataIndex: 'ip_address', render: (v, r) => !v ? <span style={{ color: 'var(--faint)' }}>-</span> : (
+          <span>{v}{r.ip_source === 'mac_mapping' && <Tooltip title={r.pending ? 'From the MAC mapping files: not saved yet' : 'Filled from the MAC mapping files'}><Tag color={r.pending ? 'gold' : 'blue'} style={{ marginLeft: 8 }}>{r.pending ? 'MAC mapping, pending' : 'MAC mapping'}</Tag></Tooltip>}</span>) },
+        { title: 'MAC', dataIndex: 'mac_addresses', render: (v) => <MacCell macs={v} /> },
+        { title: 'OS Version', dataIndex: 'os', render: (v) => v || '-' },
+        { title: 'Host IP Address', dataIndex: 'host_ip', render: (v, r) => v || <Tooltip title={r.host ? `Host: ${r.host}` : ''}><span style={{ color: 'var(--faint)' }}>-</span></Tooltip> },
+      ]} />
+  </>);
 }
 
 export default function DiscoveryPage({ type, title, sub }) {
@@ -112,6 +159,7 @@ export default function DiscoveryPage({ type, title, sub }) {
             { title: 'VLAN group', dataIndex: 'vlan_group', render: (v) => v || '-' }, { title: 'Data retrieved', dataIndex: 'data_retrieved', render: (v) => v || '-' }, { title: 'File', dataIndex: 'filename' }]} />
         <b>In inventory ({macRes.inventory.length})</b><Table rowKey={(r) => `${r.source}-${r.id}`} size="small" pagination={false} dataSource={macRes.inventory} columns={[{ title: 'Inventory', dataIndex: 'source' }, { title: 'Name', render: (_, r) => r.vm_name || r.hostname }, { title: 'MAC', dataIndex: 'mac_address', render: (v) => <span className="mono">{v}</span> }, { title: 'IP', dataIndex: 'ip_address' }]} /></>}
     </>) },
+    { key: 'filled', label: 'Filled', children: <FilledTab type={type} servers={servers} /> },
     { key: 'servers', label: 'Servers', children: (<>
       {sched && canWrite && <div className="toolbar"><Switch checked={sched.enabled} onChange={(v) => saveSched({ enabled: v })} /><span>Run discovery automatically every</span>
         <InputNumber min={15} max={10080} value={sched.interval_minutes} onChange={(v) => v && setSched({ ...sched, interval_minutes: v })} onBlur={() => saveSched({})} style={{ width: 90 }} /><span>minutes{sched.last_run ? ` (last run ${dayjs(sched.last_run).format('D MMM HH:mm')})` : ''}</span></div>}

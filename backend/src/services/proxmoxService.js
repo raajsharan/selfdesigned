@@ -67,7 +67,7 @@ async function discover(serverId) {
           `INSERT INTO proxmox_vms (server_id, vmid, type, name, node, status, ip_address, mac_addresses, os_type, cpu_count, memory_mb, disk_gb, tags, is_template, snapshot_count, last_seen)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now())
            ON CONFLICT (server_id, vmid, type) DO UPDATE SET name = EXCLUDED.name, node = EXCLUDED.node, status = EXCLUDED.status,
-             ip_address = COALESCE(EXCLUDED.ip_address, proxmox_vms.ip_address), mac_addresses = EXCLUDED.mac_addresses, os_type = EXCLUDED.os_type, cpu_count = EXCLUDED.cpu_count,
+             ip_address = COALESCE(EXCLUDED.ip_address, proxmox_vms.ip_address), ip_source = CASE WHEN EXCLUDED.ip_address IS NOT NULL THEN NULL ELSE proxmox_vms.ip_source END, mac_addresses = EXCLUDED.mac_addresses, os_type = EXCLUDED.os_type, cpu_count = EXCLUDED.cpu_count,
              memory_mb = EXCLUDED.memory_mb, disk_gb = EXCLUDED.disk_gb, tags = EXCLUDED.tags, is_template = EXCLUDED.is_template, snapshot_count = EXCLUDED.snapshot_count, last_seen = now()
            RETURNING id`,
           [serverId, v.vmid, v.type, v.name, v.node, v.status, v.ip_address, v.mac_addresses, v.os_type, v.cpu_count, v.memory_mb, v.disk_gb, v.tags, v.is_template, v.snapshots.length]);
@@ -76,6 +76,7 @@ async function discover(serverId) {
       }
       await c.query('UPDATE proxmox_servers SET last_discovery_at = now(), last_error = NULL WHERE id = $1', [serverId]);
     });
+    try { await require('../controllers/macMappingController').fillVmIps('proxmox_vms', serverId); } catch (e) { console.error('[proxmox] MAC mapping fill failed:', e.message); }
     return { server: server.name, vms: vms.length };
   } catch (e) {
     await db.query('UPDATE proxmox_servers SET last_error = $2 WHERE id = $1', [serverId, String(e.message).slice(0, 500)]);
