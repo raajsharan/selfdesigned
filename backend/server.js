@@ -20,7 +20,8 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || process.env
 }
 try { assertKey(); } catch (e) { console.error(e.message); process.exit(1); }
 if (isProd) {   // refuse dummy secrets in production
-  const weak = (v) => new Set(String(v)).size < 8 || /change.?me|secret|password|example|your_/i.test(v);
+  // Only obvious placeholders and near-constant strings are refused: a long real secret may contain any word (even "secret").
+  const weak = (v) => new Set(String(v)).size < 8 || /^(<|change.?me|your[_-]|example|replace)/i.test(v) || /^(secret|password|jwt.?secret|changeme)$/i.test(v);
   if (weak(process.env.JWT_SECRET)) { console.error('JWT_SECRET looks like a placeholder or is too repetitive: generate one with openssl rand -hex 32'); process.exit(1); }
   if (new Set(process.env.ENCRYPTION_KEY).size < 8) { console.error('ENCRYPTION_KEY looks like a placeholder: generate one with openssl rand -hex 32'); process.exit(1); }
 }
