@@ -106,6 +106,10 @@ export default function DiscoveryPage({ type, title, sub }) {
     { key: 'mac', label: 'MAC lookup', children: (<>
       <Space.Compact style={{ width: 420, marginBottom: 12 }}><Input value={mac} onChange={(e) => setMac(e.target.value)} onPressEnter={lookup} placeholder="Full or partial MAC, e.g. AA:BB:CC" /><Button type="primary" onClick={lookup}>Look up</Button></Space.Compact>
       {macRes && <><b>Discovered ({macRes.discovered.length})</b><Table rowKey="id" size="small" pagination={false} dataSource={macRes.discovered} style={{ marginBottom: 16 }} columns={[{ title: 'VM', dataIndex: 'name' }, { title: 'MAC', dataIndex: 'mac_addresses', render: (v) => <span className="mono">{(v || []).join(', ')}</span> }, { title: 'IP', dataIndex: 'ip_address' }, { title: 'Server', dataIndex: 'server_name' }]} />
+        <b>From uploaded mapping files ({(macRes.mapping || []).length})</b><Table rowKey="mac" size="small" pagination={false} dataSource={macRes.mapping || []} style={{ marginBottom: 16 }} scroll={{ x: 'max-content' }}
+          locale={{ emptyText: 'No match in the uploaded MAC mapping files' }}
+          columns={[{ title: 'MAC', dataIndex: 'mac', render: (v) => <span className="mono">{v}</span> }, { title: 'IP', dataIndex: 'ip' }, { title: 'LAN segment', dataIndex: 'lan_segment', render: (v) => v || '-' },
+            { title: 'VLAN group', dataIndex: 'vlan_group', render: (v) => v || '-' }, { title: 'Data retrieved', dataIndex: 'data_retrieved', render: (v) => v || '-' }, { title: 'File', dataIndex: 'filename' }]} />
         <b>In inventory ({macRes.inventory.length})</b><Table rowKey={(r) => `${r.source}-${r.id}`} size="small" pagination={false} dataSource={macRes.inventory} columns={[{ title: 'Inventory', dataIndex: 'source' }, { title: 'Name', render: (_, r) => r.vm_name || r.hostname }, { title: 'MAC', dataIndex: 'mac_address', render: (v) => <span className="mono">{v}</span> }, { title: 'IP', dataIndex: 'ip_address' }]} /></>}
     </>) },
     { key: 'servers', label: 'Servers', children: (<>
