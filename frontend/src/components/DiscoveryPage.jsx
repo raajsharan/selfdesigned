@@ -46,7 +46,7 @@ function MacCell({ macs }) {
 function FilledTab({ type, servers }) {
   const { message } = App.useApp(); const { canWrite } = useAuth();
   const [d, setD] = useState(null); const [loading, setLoading] = useState(false); const [applying, setApplying] = useState(false);
-  const [f, setF] = useState({ q: '', server_id: undefined, ip: undefined }); const [page, setPage] = useState(1); const [size, setSize] = useState(50);
+  const [f, setF] = useState({ q: '', server_id: undefined, ip: undefined }); const [page, setPage] = useState(1); const [size, setSize] = useState(50); const [add, setAdd] = useState(null);
   const load = useCallback(() => {
     setLoading(true);
     const params = { page, pageSize: size, ...Object.fromEntries(Object.entries(f).filter(([, v]) => v)) };
@@ -78,18 +78,20 @@ function FilledTab({ type, servers }) {
         { title: 'Name', dataIndex: 'name', render: (v) => <b>{v}</b> },
         { title: 'Status', dataIndex: 'state', render: (v) => stateTag(v) },
         { title: 'IP Address', dataIndex: 'ip_address', render: (v, r) => !v ? <span style={{ color: 'var(--faint)' }}>-</span> : (
-          <span>{v}{r.ip_source === 'mac_mapping' && <Tooltip title={r.pending ? 'From the MAC mapping files: not saved yet' : 'Filled from the MAC mapping files'}><Tag color={r.pending ? 'gold' : 'blue'} style={{ marginLeft: 8 }}>{r.pending ? 'MAC mapping, pending' : 'MAC mapping'}</Tag></Tooltip>}</span>) },
+          <span>{v}{r.pending && <Tooltip title="From the MAC mapping files: not saved yet. It is saved after the next discovery or with Update from MAC mapping."><Tag color="gold" style={{ marginLeft: 8 }}>pending update</Tag></Tooltip>}</span>) },
         { title: 'MAC', dataIndex: 'mac_addresses', render: (v) => <MacCell macs={v} /> },
         { title: 'OS Version', dataIndex: 'os', render: (v) => v || '-' },
         { title: 'Host IP Address', dataIndex: 'host_ip', render: (v, r) => v || <Tooltip title={r.host ? `Host: ${r.host}` : ''}><span style={{ color: 'var(--faint)' }}>-</span></Tooltip> },
+        { title: 'Inventory', dataIndex: 'in_inventory', width: 130, render: (v, r) => v ? <Tag color="green">In inventory</Tag> : (canWrite ? <Button size="small" icon={<PlusOutlined />} onClick={() => setAdd(r)}>Add</Button> : <Tag>Not in inventory</Tag>) },
       ]} />
+    <AddToInventoryModal type={type} vm={add} open={!!add} onClose={() => setAdd(null)} onDone={() => { setAdd(null); load(); }} />
   </>);
 }
 
 export default function DiscoveryPage({ type, title, sub }) {
   const { message } = App.useApp(); const { canWrite } = useAuth();
   const t = useServerTable(`/${type}/vms`, {}, 50);
-  const [servers, setServers] = useState([]); const [add, setAdd] = useState(null); const [running, setRunning] = useState(false);
+  const [servers, setServers] = useState([]); const [running, setRunning] = useState(false);
   const [tab, setTab] = useState('vms'); const [data, setData] = useState({}); const [mac, setMac] = useState(''); const [macRes, setMacRes] = useState(null);
   const [sched, setSched] = useState(null);
 
@@ -118,7 +120,7 @@ export default function DiscoveryPage({ type, title, sub }) {
     { title: 'OS', dataIndex: 'os', ellipsis: true, render: (v) => v || '-' }, { title: type === 'vmware' ? 'Host' : 'Node', dataIndex: 'host', render: (v) => v || '-' },
     ...(type === 'vmware' ? [{ title: 'Cluster', dataIndex: 'cluster', render: (v) => v || '-' }] : []), { title: 'Server', dataIndex: 'server_name' },
     { title: 'CPU / RAM', render: (_, r) => `${r.cpu_count || '-'} / ${r.memory_mb ? `${Math.round(r.memory_mb / 1024)} GB` : '-'}` },
-    { title: 'Inventory', dataIndex: 'in_inventory', width: 130, render: (v, r) => v ? <Tag color="green">In inventory</Tag> : (canWrite && !r.is_template ? <Button size="small" icon={<PlusOutlined />} onClick={() => setAdd(r)}>Add</Button> : <Tag>Not in inventory</Tag>) },
+    { title: 'Inventory', dataIndex: 'in_inventory', width: 130, render: (v, r) => v ? <Tag color="green">In inventory</Tag> : <Tag>Not in inventory</Tag> },
   ];
 
   const d = data;
@@ -175,7 +177,6 @@ export default function DiscoveryPage({ type, title, sub }) {
     <div className="page">
       <PageHeader title={title} sub={sub} extra={canWrite && <Button type="primary" icon={<CloudSyncOutlined />} loading={running} onClick={() => discover()}>Run discovery</Button>} />
       <Tabs activeKey={tab} onChange={setTab} items={tabs} destroyInactiveTabPane />
-      <AddToInventoryModal type={type} vm={add} open={!!add} onClose={() => setAdd(null)} onDone={() => { setAdd(null); t.reload(); }} />
     </div>
   );
 }
