@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { requestJson } = require('../utils/http');
 const { decrypt } = require('../utils/crypto');
+const soap = require('./vmwareSoap');
 
 /** vSphere Automation REST API (vCenter 7.0U2+ / ESXi 7.0U2+). Falls back to the legacy /rest session path. */
 async function openSession(server) {
@@ -8,11 +9,12 @@ async function openSession(server) {
   const auth = 'Basic ' + Buffer.from(`${server.username}:${decrypt(server.password_encrypted)}`).toString('base64');
   const opt = { method: 'POST', headers: { Authorization: auth }, verifySsl: server.verify_ssl };
   let r = await requestJson(`${base}/api/session`, opt);
-  if (r.status === 404) {
+  if ([400, 404, 405, 501].includes(r.status)) {   // not served here: try the older /rest path before giving up
     r = await requestJson(`${base}/rest/com/vmware/cis/session`, opt);
     if (r.status === 200 && r.json) return { base, token: r.json.value, legacy: true, verifySsl: server.verify_ssl };
   }
   if (r.status === 401) throw new Error('Authentication failed (check username/password)');
+  if ([400, 404, 405, 501].includes(r.status)) { const e = new Error(`This host does not provide the vSphere REST API (HTTP ${r.status})`); e.code = 'NO_REST'; throw e; }   // the caller switches to the SOAP interface
   if (r.status >= 300 || !r.json) throw new Error(`Session request failed (HTTP ${r.status})`);
   return { base, token: r.json, legacy: false, verifySsl: server.verify_ssl };
 }
@@ -32,7 +34,16 @@ async function inChunks(items, size, fn) {
 
 const normalizeNics = (nics) => (Array.isArray(nics) ? nics.map((n) => n.value || n) : Object.values(nics || {})).map((n) => n.mac_address).filter(Boolean);
 
+/**
+ * Standalone ESXi hosts (root login) and older vCenters have no REST API: they are read through the SOAP interface (/sdk).
+ * Everything else (vCenter 6.5+, read-only account is enough) uses REST, and falls back to SOAP if the host has none.
+ */
 async function fetchInventory(server) {
+  if (server.is_standalone_esxi) return soap.fetchInventory(server, decrypt(server.password_encrypted));
+  try { return await fetchRest(server); } catch (e) { if (e.code === 'NO_REST') return soap.fetchInventory(server, decrypt(server.password_encrypted)); throw e; }
+}
+
+async function fetchRest(server) {
   const s = await openSession(server);
   try {
     const hostsRaw = (await apiGet(s, '/api/vcenter/host', true)) || [];
@@ -108,6 +119,12 @@ async function discover(serverId) {
   }
 }
 
-async function test(server) { const s = await openSession(server); await requestJson(`${s.base}/api/session`, { method: 'DELETE', headers: { 'vmware-api-session-id': s.token }, verifySsl: s.verifySsl }).catch(() => {}); return true; }
+async function test(server) {
+  if (!server.is_standalone_esxi) {
+    try { const s = await openSession(server); await requestJson(`${s.base}${s.legacy ? '/rest/com/vmware/cis/session' : '/api/session'}`, { method: 'DELETE', headers: { 'vmware-api-session-id': s.token }, verifySsl: s.verifySsl }).catch(() => {}); return true; }
+    catch (e) { if (e.code !== 'NO_REST') throw e; }
+  }
+  await soap.test(server, decrypt(server.password_encrypted)); return true;
+}
 
 module.exports = { discover, test };
