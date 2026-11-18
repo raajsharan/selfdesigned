@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Input, InputNumber, Progress, Select, Space, Switch, Table, Tabs, Tag, Tree } from 'antd';
+import { App, Button, Input, InputNumber, Popover, Progress, Select, Space, Switch, Table, Tabs, Tag, Tree } from 'antd';
 import { CloudSyncOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api, { download, errMsg } from '../api/client';
@@ -23,6 +23,20 @@ const stateTag = (s) => <Tag color={/on|run/i.test(s || '') && !/off/i.test(s ||
 function BarList({ rows }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return <div>{rows.map((r) => <div key={r.name} style={{ marginBottom: 6 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>{r.name}</span><b>{r.n}</b></div><Progress percent={(r.n / max) * 100} showInfo={false} size="small" /></div>)}</div>;
+}
+
+/** The first MAC address; a VM with more than one gets a "+N more" link that opens the rest in a popup next to it. */
+function MacCell({ macs }) {
+  const list = (macs || []).filter(Boolean);
+  if (!list.length) return '-';
+  const [first, ...rest] = list;
+  return (
+    <span className="mono">{first}{rest.length > 0 && (
+      <Popover trigger="click" placement="right" title={`All MAC addresses (${list.length})`}
+        content={<div className="mono" style={{ display: 'grid', gap: 4 }}>{list.map((m) => <span key={m}>{m}</span>)}</div>}>
+        <a style={{ marginLeft: 8 }} onClick={(e) => e.stopPropagation()}>+{rest.length} more</a>
+      </Popover>)}</span>
+  );
 }
 
 export default function DiscoveryPage({ type, title, sub }) {
@@ -53,7 +67,7 @@ export default function DiscoveryPage({ type, title, sub }) {
 
   const vmCols = [
     { title: 'Name', dataIndex: 'name', render: (v) => <b>{v}</b>, ellipsis: true }, { title: 'State', dataIndex: 'state', render: stateTag, width: 90 },
-    { title: 'IP', dataIndex: 'ip_address', render: (v) => v || '-' }, { title: 'MAC', dataIndex: 'mac_addresses', render: (v) => <span className="mono">{(v || []).join(', ') || '-'}</span> },
+    { title: 'IP', dataIndex: 'ip_address', render: (v) => v || '-' }, { title: 'MAC', dataIndex: 'mac_addresses', render: (v) => <MacCell macs={v} /> },
     { title: 'OS', dataIndex: 'os', ellipsis: true, render: (v) => v || '-' }, { title: type === 'vmware' ? 'Host' : 'Node', dataIndex: 'host', render: (v) => v || '-' },
     ...(type === 'vmware' ? [{ title: 'Cluster', dataIndex: 'cluster', render: (v) => v || '-' }] : []), { title: 'Server', dataIndex: 'server_name' },
     { title: 'CPU / RAM', render: (_, r) => `${r.cpu_count || '-'} / ${r.memory_mb ? `${Math.round(r.memory_mb / 1024)} GB` : '-'}` },
