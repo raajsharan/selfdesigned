@@ -78,6 +78,32 @@ async function retrieve(ctx, type, paths) {
 const numOrNull = (p) => { const n = p && parseInt(p.text, 10); return Number.isFinite(n) ? n : null; };
 const POWER = { poweredOn: 'POWERED_ON', poweredOff: 'POWERED_OFF', suspended: 'SUSPENDED' };   // the same words the REST path stores
 
+const toNum = (p) => { const n = p && Number(p.text); return Number.isFinite(n) ? n : null; };
+const HOST_STAT_PATHS = ['summary.hardware.cpuMhz', 'summary.hardware.numCpuCores', 'summary.hardware.memorySize', 'summary.quickStats.overallCpuUsage', 'summary.quickStats.overallMemoryUsage', 'datastore'];
+
+/** Capacity and current usage per host: [{ moid, cpu_mhz_total, cpu_mhz_used, mem_mb_total, mem_mb_used, datastores: [{ id, name, type, capacity, free }] }]. */
+async function collectHostStats(ctx) {
+  const hosts = await retrieve(ctx, 'HostSystem', HOST_STAT_PATHS);
+  const ds = await retrieve(ctx, 'Datastore', ['summary.name', 'summary.type', 'summary.capacity', 'summary.freeSpace']);
+  const dsById = new Map(ds.map((d) => [d.moid, { id: d.moid, name: d.props['summary.name'] ? d.props['summary.name'].text : d.moid, type: d.props['summary.type'] ? d.props['summary.type'].text : null,
+    capacity: toNum(d.props['summary.capacity']), free: toNum(d.props['summary.freeSpace']) }]));
+  return hosts.map((h) => {
+    const p = h.props; const mhz = toNum(p['summary.hardware.cpuMhz']); const cores = toNum(p['summary.hardware.numCpuCores']); const mem = toNum(p['summary.hardware.memorySize']);
+    const refs = p.datastore ? [...p.datastore.xml.matchAll(/<ManagedObjectReference[^>]*>([^<]+)<\/ManagedObjectReference>/g)].map((m) => m[1]) : [];
+    return {
+      moid: h.moid, cpu_mhz_total: mhz !== null && cores !== null ? mhz * cores : null, cpu_mhz_used: toNum(p['summary.quickStats.overallCpuUsage']),
+      mem_mb_total: mem !== null ? Math.round(mem / 1048576) : null, mem_mb_used: toNum(p['summary.quickStats.overallMemoryUsage']),
+      datastores: refs.map((r) => dsById.get(r)).filter((d) => d && d.capacity),
+    };
+  });
+}
+
+/** Host capacity / usage only (used for a vCenter that was read through REST). Read-only. */
+async function fetchHostStats(server, password) {
+  const ctx = await open(server, password);
+  try { return await collectHostStats(ctx); } finally { await close(ctx); }
+}
+
 /** { vms, hosts } in the shape the discovery code stores. */
 async function fetchInventory(server, password) {
   const ctx = await open(server, password);
@@ -105,11 +131,12 @@ async function fetchInventory(server, password) {
     });
     const hosts = hostObjs.map((h) => ({ moid: h.moid, name: h.props.name ? h.props.name.text : h.moid,
       state: (h.props['runtime.connectionState'] && h.props['runtime.connectionState'].text) || (h.props['runtime.powerState'] && h.props['runtime.powerState'].text) || null, cluster: null, datacenter }));
-    return { vms, hosts, about: ctx.fullName };
+    let hostStats = []; try { hostStats = await collectHostStats(ctx); } catch { /* capacity is optional: the inventory above is what matters */ }
+    return { vms, hosts, hostStats, about: ctx.fullName };
   } finally { await close(ctx); }
 }
 
 /** Sign in and out only. Resolves to the product name, e.g. "VMware ESXi 6.7.0 build-14320388". */
 async function test(server, password) { const ctx = await open(server, password); const name = ctx.fullName; await close(ctx); return name; }
 
-module.exports = { fetchInventory, test, esc, unesc };
+module.exports = { fetchInventory, fetchHostStats, test, esc, unesc };

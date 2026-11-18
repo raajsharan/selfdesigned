@@ -2,7 +2,7 @@ import {
   DashboardOutlined, LayoutOutlined, StopOutlined, DeleteOutlined, SearchOutlined,
   SwapOutlined, SafetyCertificateOutlined, AppstoreOutlined, ToolOutlined, CloudOutlined, ClusterOutlined, BarChartOutlined,
   HeartOutlined, DiffOutlined, TeamOutlined, UserSwitchOutlined, SettingOutlined, FormOutlined, UnorderedListOutlined, BellOutlined,
-  SaveOutlined, AuditOutlined, BgColorsOutlined, ControlOutlined, ProfileOutlined, NumberOutlined, ApiOutlined, DatabaseOutlined, FontSizeOutlined,
+  SaveOutlined, AuditOutlined, BgColorsOutlined, ControlOutlined, ProfileOutlined, NumberOutlined, ApiOutlined, DatabaseOutlined, FontSizeOutlined, NodeIndexOutlined, PieChartOutlined,
 } from '@ant-design/icons';
 
 // key = page key used by the backend for access control.
@@ -17,6 +17,7 @@ export const NAV = [
     { key: 'migration', label: 'Migration Tracker', path: '/migration', icon: SwapOutlined },
     { key: 'vmware', label: 'VMware Discovery', path: '/vmware', icon: CloudOutlined },
     { key: 'proxmox', label: 'Proxmox Discovery', path: '/proxmox', icon: ClusterOutlined },
+    { key: 'esxi-utilization', label: 'ESXi Utilization', path: '/esxi-utilization', icon: PieChartOutlined },
   ] },
   { group: 'Security & Software', items: [
     { key: 'tenable', label: 'Tenable Report', path: '/tenable', icon: SafetyCertificateOutlined },
@@ -30,6 +31,7 @@ export const NAV = [
     { key: 'reconcile', label: 'Reconcile', path: '/reconcile', icon: DiffOutlined },
   ] },
   { group: 'Administration', items: [
+    { key: 'admin-mac-mapping', label: 'MAC Mapping', path: '/admin/mac-mapping', icon: NodeIndexOutlined },
     { key: 'admin-hostname-pattern', label: 'Hostname Naming', path: '/admin/hostname-pattern', icon: FontSizeOutlined },
     { key: 'admin-field-library', label: 'Field Library', path: '/admin/field-library', icon: DatabaseOutlined },
     { key: 'admin-users', label: 'Users', path: '/admin/users', icon: TeamOutlined },

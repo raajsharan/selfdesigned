@@ -55,3 +55,16 @@ CREATE TABLE IF NOT EXISTS vmware_snapshots (
   created_at TIMESTAMPTZ,
   size_mb    BIGINT
 );
+
+-- Capacity and current usage of each ESXi host, read at discovery time (CPU in MHz, memory in MB, storage per datastore).
+CREATE TABLE IF NOT EXISTS vmware_host_stats (
+  server_id     INT NOT NULL REFERENCES vmware_servers(id) ON DELETE CASCADE,
+  moid          VARCHAR(64) NOT NULL,
+  cpu_mhz_total BIGINT,
+  cpu_mhz_used  BIGINT,
+  mem_mb_total  BIGINT,
+  mem_mb_used   BIGINT,
+  datastores    JSONB NOT NULL DEFAULT '[]',     -- [{id, name, type, capacity, free}] in bytes
+  collected_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (server_id, moid)
+);

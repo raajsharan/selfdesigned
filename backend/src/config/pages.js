@@ -1,14 +1,14 @@
 // Static page keys (built-in screens). User-designed pages add dynamic keys of the form "page:<slug>".
 const PAGES = [
   'dashboard', 'decommissioned', 'recycle-bin', 'search', 'migration', 'endpoint-central', 'software-status', 'nessus-status',
-  'tenable', 'vmware', 'proxmox', 'weekly-report', 'data-health', 'reconcile',
-  'admin-users', 'admin-roles', 'admin-user-page-control', 'admin-pages', 'admin-field-library', 'admin-hostname-pattern', 'admin-dropdowns',
+  'tenable', 'vmware', 'proxmox', 'esxi-utilization', 'weekly-report', 'data-health', 'reconcile',
+  'admin-users', 'admin-roles', 'admin-user-page-control', 'admin-pages', 'admin-field-library', 'admin-hostname-pattern', 'admin-mac-mapping', 'admin-dropdowns',
   'admin-tag-ranges', 'admin-compliance', 'admin-teams', 'admin-migration-config', 'admin-endpoint-central',
   'admin-backup', 'admin-audit', 'admin-branding', 'admin-nav-order',
 ];
 const ADMIN_PAGES = PAGES.filter((p) => p.startsWith('admin-'));
 const USER_PAGES = PAGES.filter((p) => !p.startsWith('admin-'));
-const VIEWER_PAGES = ['dashboard', 'decommissioned', 'search', 'migration', 'tenable', 'vmware', 'proxmox', 'weekly-report'];
+const VIEWER_PAGES = ['dashboard', 'decommissioned', 'search', 'migration', 'tenable', 'vmware', 'proxmox', 'esxi-utilization', 'weekly-report'];
 
 // `dynamic` = also gets every user-designed page. Custom roles pick pages explicitly.
 const BUILTIN_ROLES = {

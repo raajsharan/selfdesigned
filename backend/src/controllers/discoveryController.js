@@ -176,7 +176,7 @@ module.exports = function buildDiscoveryController(typeKey) {
     const disc = (await db.query(`SELECT * FROM (${T.view}) t WHERE EXISTS (SELECT 1 FROM unnest(mac_addresses) m WHERE replace(replace(upper(m), ':', ''), '-', '') LIKE $1)`, [`%${key}%`])).rows;
     const idx = await loadInventoryIndex();
     const inv = idx.rows.filter((a) => req.user.pages.has(pageKey(a.source)) && macKey(a.mac_address).includes(key));   // only pages this user may open
-    res.json({ discovered: disc, inventory: inv });
+    res.json({ discovered: disc, inventory: inv, mapping: await require('./macMappingController').lookup(key) });
   };
 
   const addToInventory = async (req, res) => {

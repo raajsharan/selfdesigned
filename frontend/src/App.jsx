@@ -10,12 +10,14 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const PageHost = lazy(() => import('./pages/PageHost'));
 const PagesAdmin = lazy(() => import('./pages/Admin/PagesAdmin'));
 const HostnamePattern = lazy(() => import('./pages/Admin/HostnamePattern'));
+const MacMapping = lazy(() => import('./pages/Admin/MacMapping'));
 const FieldLibrary = lazy(() => import('./pages/Admin/FieldLibrary'));
 const PageDesigner = lazy(() => import('./pages/Admin/PageDesigner'));
 const Decommissioned = lazy(() => import('./pages/Decommissioned/Decommissioned'));
 const RecycleBin = lazy(() => import('./pages/RecycleBin'));
 const GlobalSearch = lazy(() => import('./pages/GlobalSearch'));
 const MigrationTracker = lazy(() => import('./pages/MigrationTracker'));
+const EsxiUtilization = lazy(() => import('./pages/EsxiUtilization'));
 const VMwareDiscovery = lazy(() => import('./pages/VMwareDiscovery'));
 const ProxmoxDiscovery = lazy(() => import('./pages/ProxmoxDiscovery'));
 const TenableReport = lazy(() => import('./pages/TenableReport'));
@@ -47,10 +49,10 @@ function Guard({ page, children }) {
 const ROUTES = {
   dashboard: <Dashboard />,
   decommissioned: <Decommissioned />, 'recycle-bin': <RecycleBin />, search: <GlobalSearch />, migration: <MigrationTracker />,
-  vmware: <VMwareDiscovery />, proxmox: <ProxmoxDiscovery />, tenable: <TenableReport />, 'nessus-status': <NessusStatus />,
+  vmware: <VMwareDiscovery />, 'esxi-utilization': <EsxiUtilization />, proxmox: <ProxmoxDiscovery />, tenable: <TenableReport />, 'nessus-status': <NessusStatus />,
   'endpoint-central': <EndpointCentral />, 'software-status': <MEStatus />, 'weekly-report': <WeeklyReport />,
   'data-health': <DataHealth />, reconcile: <Reconcile />, 'admin-users': <Users />, 'admin-roles': <Roles />,
-  'admin-user-page-control': <UserPageControl />, 'admin-pages': <PagesAdmin />, 'admin-field-library': <FieldLibrary />, 'admin-hostname-pattern': <HostnamePattern />, 'admin-dropdowns': <Dropdowns />,
+  'admin-user-page-control': <UserPageControl />, 'admin-pages': <PagesAdmin />, 'admin-field-library': <FieldLibrary />, 'admin-mac-mapping': <MacMapping />, 'admin-hostname-pattern': <HostnamePattern />, 'admin-dropdowns': <Dropdowns />,
   'admin-tag-ranges': <TagRanges />, 'admin-compliance': <ComplianceConfig />,
   'admin-migration-config': <MigrationConfig />, 'admin-teams': <TeamsNotifications />, 'admin-backup': <Backup />,
   'admin-audit': <AuditLogs />, 'admin-branding': <Branding />, 'admin-nav-order': <Navigate to="/" replace />,

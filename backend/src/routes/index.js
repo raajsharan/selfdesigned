@@ -122,6 +122,18 @@ api.post('/software-status/jobs', strict, ...mePage, adminOnly, ...nessusItems, 
 api.get('/software-status/jobs/:jobId', ...mePage, adminOnly, h(meDeploy.getJob));
 api.get('/software-status/jobs/:jobId/log', ...mePage, adminOnly, h(meDeploy.jobLog));
 
+// ---- ESXi utilization: capacity and usage of the discovered ESXi hosts, by department
+const esxiPage = [auth, requirePageAccess('esxi-utilization')];
+api.get('/esxi-utilization', ...esxiPage, h(require('../controllers/esxiUtilizationController').get));
+api.get('/esxi-utilization/csv', ...esxiPage, h(require('../controllers/esxiUtilizationController').csv));
+
+// ---- MAC -> IP mapping files (read by the MAC lookup tab; managed here)
+const macPage = [auth, requirePageAccess('admin-mac-mapping')];
+api.get('/mac-mapping', ...macPage, h(require('../controllers/macMappingController').list));
+api.post('/mac-mapping/files', strict, ...macPage, uploader(['xlsx', 'csv'], 20).single('file'), h(require('../controllers/macMappingController').upload));
+api.delete('/mac-mapping/files/:id', ...macPage, intId, validate, h(require('../controllers/macMappingController').remove));
+api.delete('/mac-mapping/files', ...macPage, adminOnly, h(require('../controllers/macMappingController').clear));
+
 // ---- Backup & restore
 const bk = [auth, requirePageAccess('admin-backup'), adminOnly, strict];
 api.get('/backup', ...bk, h(backup.tables));

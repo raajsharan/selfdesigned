@@ -40,7 +40,11 @@ const normalizeNics = (nics) => (Array.isArray(nics) ? nics.map((n) => n.value |
  */
 async function fetchInventory(server) {
   if (server.is_standalone_esxi) return soap.fetchInventory(server, decrypt(server.password_encrypted));
-  try { return await fetchRest(server); } catch (e) { if (e.code === 'NO_REST') return soap.fetchInventory(server, decrypt(server.password_encrypted)); throw e; }
+  let inv;
+  try { inv = await fetchRest(server); } catch (e) { if (e.code === 'NO_REST') return soap.fetchInventory(server, decrypt(server.password_encrypted)); throw e; }
+  // The REST API has no host capacity or usage: read them through the SOAP interface (same login). Optional: discovery does not fail without it.
+  try { inv.hostStats = await soap.fetchHostStats(server, decrypt(server.password_encrypted)); } catch (e) { inv.hostStats = []; inv.hostStatsError = String(e.message).slice(0, 200); }
+  return inv;
 }
 
 async function fetchRest(server) {
@@ -93,7 +97,7 @@ async function discover(serverId) {
   const server = rows[0];
   if (!server) throw new Error('Server not found');
   try {
-    const { vms, hosts } = await fetchInventory(server);
+    const { vms, hosts, hostStats = [] } = await fetchInventory(server);
     await db.withTx(async (c) => {
       for (const v of vms) {
         await c.query(
@@ -109,6 +113,13 @@ async function discover(serverId) {
           `INSERT INTO vmware_hosts (server_id, moid, name, cluster, datacenter, state, last_seen) VALUES ($1,$2,$3,$4,$5,$6, now())
            ON CONFLICT (server_id, moid) DO UPDATE SET name = EXCLUDED.name, cluster = EXCLUDED.cluster, datacenter = EXCLUDED.datacenter, state = EXCLUDED.state, last_seen = now()`,
           [serverId, h.moid, h.name, h.cluster, h.datacenter, h.state]);
+      }
+      for (const s of hostStats) {
+        await c.query(
+          `INSERT INTO vmware_host_stats (server_id, moid, cpu_mhz_total, cpu_mhz_used, mem_mb_total, mem_mb_used, datastores, collected_at) VALUES ($1,$2,$3,$4,$5,$6,$7, now())
+           ON CONFLICT (server_id, moid) DO UPDATE SET cpu_mhz_total = EXCLUDED.cpu_mhz_total, cpu_mhz_used = EXCLUDED.cpu_mhz_used, mem_mb_total = EXCLUDED.mem_mb_total,
+             mem_mb_used = EXCLUDED.mem_mb_used, datastores = EXCLUDED.datastores, collected_at = now()`,
+          [serverId, s.moid, s.cpu_mhz_total, s.cpu_mhz_used, s.mem_mb_total, s.mem_mb_used, JSON.stringify(s.datastores || [])]);
       }
       await c.query('UPDATE vmware_servers SET last_discovery_at = now(), last_error = NULL WHERE id = $1', [serverId]);
     });

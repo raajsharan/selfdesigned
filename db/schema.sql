@@ -300,3 +300,27 @@ END $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_audit_logs_guard ON audit_logs;
 CREATE TRIGGER trg_audit_logs_guard BEFORE UPDATE OR DELETE ON audit_logs
   FOR EACH ROW EXECUTE FUNCTION audit_logs_guard();
+
+-- MAC -> IP mapping files uploaded by an administrator (CSV / XLSX). Each upload is stored on its own; lookups combine them (newest file wins per MAC).
+CREATE TABLE IF NOT EXISTS mac_mapping_files (
+  id           SERIAL PRIMARY KEY,
+  filename     VARCHAR(255) NOT NULL,
+  row_count    INT NOT NULL DEFAULT 0,
+  skipped      INT NOT NULL DEFAULT 0,
+  columns      JSONB NOT NULL DEFAULT '{}',
+  uploaded_by  INT,
+  uploaded_by_email VARCHAR(255),
+  uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS mac_mapping_entries (
+  id             BIGSERIAL PRIMARY KEY,
+  file_id        INT NOT NULL REFERENCES mac_mapping_files(id) ON DELETE CASCADE,
+  mac            VARCHAR(17) NOT NULL,          -- AA:BB:CC:DD:EE:FF
+  mac_key        VARCHAR(12) NOT NULL,          -- AABBCCDDEEFF, for partial searches
+  ip             VARCHAR(64) NOT NULL,
+  lan_segment    VARCHAR(128),
+  vlan_group     VARCHAR(128),
+  data_retrieved VARCHAR(255)
+);
+CREATE INDEX IF NOT EXISTS idx_mac_mapping_mac ON mac_mapping_entries (mac_key);
+CREATE INDEX IF NOT EXISTS idx_mac_mapping_file ON mac_mapping_entries (file_id);
