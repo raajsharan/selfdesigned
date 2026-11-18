@@ -32,6 +32,7 @@ module.exports = (typeKey) => {
   r.get('/vms', query('page').optional().isInt({ min: 1 }), query('pageSize').optional().isInt({ min: 1, max: 500 }), validate, h(c.list));
   r.get('/vms/export', h(c.exportCsv));
   r.patch('/vms/:id', id, validate, h(c.editVm));
+  r.get('/vms/:id/inventory-defaults', id, validate, h(c.inventoryDefaults));
   r.post('/vms/:id/add-to-inventory', id, validate, h(c.addToInventory));
   r.get('/dashboard', h(c.dashboard));
   r.get('/drift', h(c.drift));

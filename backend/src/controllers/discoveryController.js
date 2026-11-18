@@ -42,6 +42,7 @@ module.exports = function buildDiscoveryController(typeKey) {
     const p = []; const w = ['TRUE'];
     if (q.state) { p.push(q.state); w.push(`state = $${p.length}`); }
     if (q.server_id) { p.push(parseInt(q.server_id, 10)); w.push(`server_id = $${p.length}`); }
+    if (q.vm_id) { p.push(parseInt(q.vm_id, 10)); w.push(`id = $${p.length}`); }
     for (const c of ['cluster', 'host', 'datacenter']) if (q[c]) { p.push(q[c]); w.push(`${c} = $${p.length}`); }
     if (q.stale === '1') w.push('(is_missing OR is_off)');
     if (q.q) { p.push(`%${String(q.q).replace(/[%_\\]/g, '\\$&')}%`); w.push(`(name ILIKE $${p.length} OR ip_address ILIKE $${p.length} OR os ILIKE $${p.length} OR array_to_string(mac_addresses, ',') ILIKE $${p.length})`); }
@@ -194,23 +195,30 @@ module.exports = function buildDiscoveryController(typeKey) {
     const mk = require('./macMappingController').macKeyOf;
 
     // Host IP: the host name when it is an IP; else the IP of the inventory record of that host (pages this user may open); else the server's address for a standalone host.
-    const recs = (await db.query(`SELECT p.slug, r.hostname, r.vm_name, r.ip_address FROM inventory_records r JOIN inventory_pages p ON p.id = r.page_id
+    const recs = (await db.query(`SELECT p.slug, r.hostname, r.vm_name, r.ip_address, r.department, r.location FROM inventory_records r JOIN inventory_pages p ON p.id = r.page_id
       WHERE r.is_deleted = FALSE AND r.is_decommissioned = FALSE AND r.ip_address IS NOT NULL`)).rows.filter((r) => req.user.pages.has(pageKey(r.slug)));
     const byName = new Map(); const byShort = new Map(); const short = (s) => String(s || '').toLowerCase().split('.')[0];
-    for (const r of recs) for (const n of [r.hostname, r.vm_name]) if (n) { byName.set(String(n).toLowerCase(), r.ip_address); byShort.set(short(n), r.ip_address); }
+    for (const r of recs) for (const n of [r.hostname, r.vm_name]) if (n) { byName.set(String(n).toLowerCase(), r); byShort.set(short(n), r); }
     const servers = new Map((await db.query(`SELECT id, host${typeKey === 'vmware' ? ', is_standalone_esxi' : ''} FROM ${T.serversTable}`)).rows.map((s) => [s.id, s]));
     const nodes = typeKey === 'proxmox' ? new Map((await db.query(`SELECT server_id, COUNT(DISTINCT host)::int n FROM (${T.view}) t GROUP BY server_id`)).rows.map((r) => [r.server_id, r.n])) : null;
-    const hostIp = (v) => {
-      const h = v.host; if (!h) return null; if (IPV4.test(h)) return h;
-      const r = byName.get(String(h).toLowerCase()) || byShort.get(short(h)); if (r) return r;
+    const hostInfo = (v) => {   // { ip, department, location } of the host the VM runs on
+      const h = v.host; if (!h) return { ip: null };
+      const r = byName.get(String(h).toLowerCase()) || byShort.get(short(h)) || [...byName.values()].find((x) => x.ip_address === h) || null;
+      const dep = r ? { department: r.department, location: r.location } : {};
+      if (IPV4.test(h)) return { ip: h, ...dep };
+      if (r) return { ip: r.ip_address, ...dep };
       const s = servers.get(v.server_id);
-      if (s && ((typeKey === 'vmware' && s.is_standalone_esxi) || (typeKey === 'proxmox' && nodes.get(v.server_id) === 1))) return s.host;
-      return null;
+      if (s && ((typeKey === 'vmware' && s.is_standalone_esxi) || (typeKey === 'proxmox' && nodes.get(v.server_id) === 1))) return { ip: s.host };
+      return { ip: null };
     };
+    const idx = await loadInventoryIndex();
     const out = rows.map((v) => {
       let ip = v.ip_address || null; let source = v.ip_source === 'mac_mapping' ? 'mac_mapping' : ip ? 'discovered' : null; let pending = false;
       if (!ip) { const hit = (v.mac_addresses || []).map((m) => map.get(mk(m))).find(Boolean); if (hit) { ip = hit.ip; source = 'mac_mapping'; pending = true; } }
-      return { id: v.id, name: v.name, state: v.state, is_off: v.is_off, ip_address: ip, ip_source: source, pending, mac_addresses: v.mac_addresses || [], os: v.os, host: v.host, host_ip: hostIp(v), server_name: v.server_name };
+      const in_inventory = classify({ name: v.name, ip, macs: v.mac_addresses }, idx).status !== 'not_in_inventory';
+      const hi = hostInfo(v);
+      return { id: v.id, name: v.name, state: v.state, is_off: v.is_off, in_inventory, ip_address: ip, ip_source: source, pending, mac_addresses: v.mac_addresses || [], os: v.os, host: v.host, host_ip: hi.ip,
+        host_department: hi.department || null, host_location: hi.location || null, cpu_count: v.cpu_count, memory_mb: v.memory_mb, cluster: v.cluster, datacenter: v.datacenter, server_name: v.server_name };
     });
     return { rows: out, total };
   };
@@ -238,6 +246,24 @@ module.exports = function buildDiscoveryController(typeKey) {
       rows.map((r) => ({ ...r, status: (r.state || '').replace('POWERED_', '').toLowerCase(), ip_from: r.ip_source === 'mac_mapping' ? 'MAC mapping' : r.ip_source ? 'discovery' : '', mac: r.mac_addresses.join(' ') })));
   };
 
+  const cleanOs = (s) => String(s || '').replace(/^microsoft\s+/i, '').replace(/\s*\((32|64)-bit\)/i, '').replace(/\s+/g, ' ').trim();
+  /** Everything about a discovered VM that the "Add to inventory" form can be filled with. */
+  const inventoryDefaults = async (req, res) => {
+    const { rows } = await filledRows(req, { vm_id: req.params.id }, 1, 0);
+    const v = rows[0]; if (!v) throw notFound('VM not found');
+    const os_type = guessOsType(v.os) || null; const full = cleanOs(v.os);
+    // OS version: the Dropdown Master value that the guest OS name contains (preferring the ones for this OS type), else the cleaned guest OS name.
+    const vers = (await db.query("SELECT value, parent_value FROM dropdown_values WHERE category = 'os_version'")).rows;
+    const low = full.toLowerCase();
+    const pick = (list) => list.filter((x) => low.includes(String(x.value).toLowerCase())).sort((a, b) => b.value.length - a.value.length)[0];
+    const hit = pick(vers.filter((x) => !x.parent_value || !os_type || String(x.parent_value).toLowerCase() === os_type.toLowerCase())) || pick(vers);
+    res.json({
+      name: v.name, hostname: v.name, ip_address: v.ip_address, ip_source: v.ip_source, mac_address: (v.mac_addresses || [])[0] || null, os_type, os_version: hit ? hit.value : full || null,
+      server_status: v.is_off ? 'Inactive' : 'Active', host_name: v.host, host_ip: v.host_ip, cpu_count: v.cpu_count, memory_gb: v.memory_mb ? Math.round((v.memory_mb / 1024) * 10) / 10 : null,
+      cluster: v.cluster, datacenter: v.datacenter, department: v.host_department, location: v.host_location,
+    });
+  };
+
   const addToInventory = async (req, res) => {
     const { rows } = await db.query(`SELECT * FROM (${T.view}) t WHERE id = $1`, [req.params.id]);
     const v = rows[0];
@@ -260,6 +286,19 @@ module.exports = function buildDiscoveryController(typeKey) {
       status: o.server_status || (v.is_off ? 'Inactive' : 'Active'), department: o.department, location: o.location, asset_tag: o.asset_tag };
     const data = {};
     for (const [role, val] of Object.entries(values)) if (rk[role] && val) data[rk[role]] = val;
+    // Details without a role (OS version, host, host IP, CPU, memory...) go into the page's field with a matching name, when it has one.
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const usable = (page.config.fields || []).filter((f) => !f.role && !['password', 'boolean', 'date', 'hostname_suggest'].includes(f.type));
+    const named = (re) => usable.find((f) => re.test(norm(f.label)) || re.test(norm(f.key)));
+    const extra = [
+      [o.os_version, named(/^(os|operatingsystem)version$|^osver(sion)?$/)],
+      [IPV4.test(String(o.host_ip || '')) ? o.host_ip : null, named(/^(host|hosted|esxi|hypervisor|parent|vmhost)(ed)?(server)?ip(address)?$|^ipof(the)?(esxi)?host$|^hostipaddress$/)],
+      [o.host_name, named(/^(host|hostedon|esxihost|hypervisor|parenthost|hostserver|vmhost|hostmachine)$/)],
+      [o.cpu_count, named(/^(vcpu|vcpus|cpu|cpus|cpucount|numcpu|numberofcpu|cpucores|cores)$/)],
+      [o.memory_gb, named(/^(ram|memory|ramgb|memorygb|vmemory)$/)],
+      [o.cluster, named(/^cluster$/)], [o.datacenter, named(/^datacenter$/)],
+    ];
+    for (const [val, f] of extra) if (f && val !== undefined && val !== null && val !== '' && data[f.key] === undefined) data[f.key] = val;
     if (!Object.keys(data).length) throw bad('That page has no fields with a recognised role (name, IP, MAC, ...) to fill in. Assign roles to fields in the page designer.');
     const row = await createFromData(page, data, req.user);
     audit(req, 'create', `page:${page.slug}`, row.id, { name: values.name, from: typeKey });
@@ -288,5 +327,5 @@ module.exports = function buildDiscoveryController(typeKey) {
     res.json({ ok: true });
   };
 
-  return { servers, discover, list, exportCsv, dashboard, drift, topology, snapshots, stale, macLookup, filled, filledApply, filledCsv, addToInventory, schedule, editVm };
+  return { servers, discover, list, exportCsv, dashboard, drift, topology, snapshots, stale, macLookup, filled, filledApply, filledCsv, inventoryDefaults, addToInventory, schedule, editVm };
 };
