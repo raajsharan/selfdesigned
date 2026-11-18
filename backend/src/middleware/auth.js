@@ -6,17 +6,21 @@ const asyncHandler = require('../utils/asyncHandler');
 /** Work out which pages a user may open and whether they may write. */
 async function resolveAccess(user) {
   let pages; let write;
-  const dyn = (await db.query('SELECT slug FROM inventory_pages')).rows.map((r) => pageKey(r.slug));   // every designed page
+  const dynQ = db.query('SELECT slug FROM inventory_pages');   // every designed page; runs while the role is looked up
+  const roleQ = BUILTIN_ROLES[user.role] ? (EDITABLE_BUILTIN.has(user.role) ? db.query('SELECT pages, can_write FROM builtin_role_overrides WHERE name = $1', [user.role]) : null)
+    : db.query('SELECT pages, can_write FROM roles WHERE name = $1', [user.role]);
+  const [dynRes, roleRes] = await Promise.all([dynQ, roleQ]);
+  const dyn = dynRes.rows.map((r) => pageKey(r.slug));
   const valid = new Set([...PAGES, ...dyn]);
   if (BUILTIN_ROLES[user.role]) {
     pages = new Set([...BUILTIN_ROLES[user.role].pages, ...(BUILTIN_ROLES[user.role].dynamic ? dyn : [])]);
     write = BUILTIN_ROLES[user.role].write;
     if (EDITABLE_BUILTIN.has(user.role)) {   // an administrator customised this built-in role
-      const { rows } = await db.query('SELECT pages, can_write FROM builtin_role_overrides WHERE name = $1', [user.role]);
+      const rows = roleRes.rows;
       if (rows[0]) { pages = new Set(rows[0].pages.filter((p) => valid.has(p))); write = rows[0].can_write; }
     }
   } else {
-    const { rows } = await db.query('SELECT pages, can_write FROM roles WHERE name = $1', [user.role]);
+    const rows = roleRes.rows;
     pages = new Set((rows[0] ? rows[0].pages : []).filter((p) => valid.has(p)));
     write = rows[0] ? rows[0].can_write : false;
   }
@@ -42,7 +46,7 @@ const authenticate = asyncHandler(async (req, res, next) => {
   const u = rows[0];
   if (!u || !u.is_active) return res.status(401).json({ error: 'Account unavailable' });
   // A password change / reset or deactivation signs out every token issued before it.
-  if (u.tokens_valid_after && (payload.iat || 0) < Math.floor(new Date(u.tokens_valid_after).getTime() / 1000)) return res.status(401).json({ error: 'Session ended. Please sign in again.' });
+  if (u.tokens_valid_after && (payload.ims || (payload.iat || 0) * 1000) < new Date(u.tokens_valid_after).getTime()) return res.status(401).json({ error: 'Session ended. Please sign in again.' });
   const access = await resolveAccess(u);
   req.user = { ...u, pages: access.pages, canWrite: access.write, isSuper: u.role === 'superadmin' };
   next();
@@ -71,6 +75,7 @@ const requirePasswordAccess = asyncHandler(async (req, res, next) => {
 
 const isAdminRole = (u) => !!u && (u.role === 'superadmin' || u.role === 'admin');
 const signToken = (user) =>
-  jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: process.env.JWT_EXPIRES_IN || '12h' });
+  jwt.sign({ sub: user.id, ims: Date.now() }, process.env.JWT_SECRET,   // ims = issue time in milliseconds (iat only has seconds)
+    { algorithm: 'HS256', expiresIn: process.env.JWT_EXPIRES_IN || '12h' });
 
 module.exports = { isAdminRole, authenticate, authorize, requirePageAccess, requirePasswordAccess, signToken, resolveAccess };

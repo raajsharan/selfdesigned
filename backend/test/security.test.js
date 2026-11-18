@@ -8,6 +8,8 @@ const BASE = process.env.BASE_URL || 'http://localhost:4000';
 const SUPER = { email: process.env.TEST_EMAIL, password: process.env.TEST_PASSWORD };
 const run = Date.now().toString(36);
 const PW = 'Str0ng#Passw0rd-1';
+const n = parseInt(run, 36);   // unique per run, so the tests can be repeated on the same database
+const ip = (k) => `10.${(n >> 8) & 255}.${n & 255}.${k}`;
 
 async function api(method, path, { token, body, raw, headers } = {}) {
   const r = await fetch(BASE + '/api' + path, {
@@ -122,7 +124,7 @@ test('VMware / Proxmox servers: strict host, and the secret cannot follow a chan
   assert.equal(ok.status, 201, ok.text);
   const moved = await api('PUT', `/vmware/servers/${ok.json.id}`, { token: S.sa, body: { host: 'attacker.example.com' } });
   assert.equal(moved.status, 400); assert.match(moved.json.error, /again/);
-  assert.equal((await api('PUT', `/vmware/servers/${ok.json.id}`, { token: S.sa, body: { name: 'renamed only' } })).status, 200, 'unchanged host needs no secret');
+  assert.equal((await api('PUT', `/vmware/servers/${ok.json.id}`, { token: S.sa, body: { name: `renamed-${run}` } })).status, 200, 'unchanged host needs no secret');
   assert.equal((await api('PUT', `/vmware/servers/${ok.json.id}`, { token: S.sa, body: { host: 'new-vc.example.com', password: 'Secret#2' } })).status, 200);
   const px = await api('POST', '/proxmox/servers', { token: S.sa, body: { name: `pve-${run}`, host: 'pve.example.com', port: 70000, token_id: 'root@pam!t', token_secret: 'x' } });
   assert.equal(px.status, 400, 'port out of range');
@@ -144,7 +146,7 @@ test('host rename: needs the view-passwords right, and never retargets a saved p
   const hp = (await api('GET', '/hostname-pattern', { token: S.sa })).json; const { locations, pages, ...keep } = hp;
   assert.equal((await api('PUT', '/hostname-pattern', { token: S.sa, body: { ...keep, rename_pages: [slug] } })).status, 200);
 
-  const rec = { hostname: 'oldname', ip: '10.77.1.5', os_type: 'Linux', ssh_user: 'root', ssh_pass: 'Pw#12345' };
+  const rec = { hostname: 'oldname', ip: ip(5), os_type: 'Linux', ssh_user: 'root', ssh_pass: 'Pw#12345' };
   const c = await api('POST', `/p/${slug}/records`, { token: S.sa, body: { data: rec } });
   assert.equal(c.status, 201, c.text);
 
@@ -157,14 +159,14 @@ test('host rename: needs the view-passwords right, and never retargets a saved p
   assert.match(denied.json.rename_skipped, /view passwords/i); assert.equal(denied.json.rename_job, undefined);
 
   // someone who may view passwords, but the IP was changed in the same save: the stored password must not follow it
-  const retarget = await api('PUT', `/p/${slug}/records/${c.json.id}`, { token: S.sa, body: { data: { hostname: 'newname2', ip: '10.66.6.6' }, apply_hostname: { reboot: true } } });
+  const retarget = await api('PUT', `/p/${slug}/records/${c.json.id}`, { token: S.sa, body: { data: { hostname: 'newname2', ip: ip(66) }, apply_hostname: { reboot: true } } });
   assert.equal(retarget.status, 200, retarget.text);
   assert.match(retarget.json.rename_skipped, /IP address was changed/i); assert.equal(retarget.json.rename_job, undefined);
 
   // a page that is not enabled for renaming
   const other = await api('POST', '/pages', { token: S.sa, body: { slug: `ren2-${run}`, title: `Ren2 ${run}`, config: cfg } });
   assert.equal(other.status, 201);
-  const c2 = await api('POST', `/p/ren2-${run}/records`, { token: S.sa, body: { data: { ...rec, ip: '10.77.1.6' }, apply_hostname: { reboot: true } } });
+  const c2 = await api('POST', `/p/ren2-${run}/records`, { token: S.sa, body: { data: { ...rec, ip: ip(6) }, apply_hostname: { reboot: true } } });
   assert.equal(c2.status, 201); assert.match(c2.json.rename_skipped, /not enabled/i);
 });
 
@@ -176,14 +178,18 @@ test('Ansible templating cannot be reached through a saved username or password'
   }
 });
 
-test('the audit trail cannot be edited or deleted', async () => {
-  require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+test('the audit trail cannot be edited or deleted', async (t) => {
+  // This talks to the database directly, so it only runs against a database named explicitly for tests, and never keeps a change.
+  const name = process.env.TEST_DB_NAME;
+  if (!name) return t.skip('set TEST_DB_NAME to the throw-away test database (and start the server on it) to run this check');
   const { Client } = require('pg');
-  const c = new Client({ host: process.env.DB_HOST, port: +process.env.DB_PORT, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_NAME });
+  const c = new Client({ host: process.env.DB_HOST || 'localhost', port: +(process.env.DB_PORT || 5432), user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: name });
   await c.connect();
   try {
-    await assert.rejects(c.query("UPDATE audit_logs SET action = 'x' WHERE id = (SELECT MIN(id) FROM audit_logs)"), /append-only/);
-    await assert.rejects(c.query('DELETE FROM audit_logs WHERE id = (SELECT MIN(id) FROM audit_logs)'), /append-only/);
+    for (const sql of ["UPDATE audit_logs SET action = 'x' WHERE id = (SELECT MIN(id) FROM audit_logs)", 'DELETE FROM audit_logs WHERE id = (SELECT MIN(id) FROM audit_logs)']) {
+      await c.query('BEGIN');
+      try { await assert.rejects(c.query(sql), /append-only/); } finally { await c.query('ROLLBACK'); }
+    }
   } finally { await c.end(); }
 });
 

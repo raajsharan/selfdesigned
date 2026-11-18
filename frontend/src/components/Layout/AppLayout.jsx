@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal, Tooltip } from 'antd';
+import { App, Avatar, Button, Dropdown, Form, Input, Layout, Menu, Modal, Spin, Tooltip } from 'antd';
 import { CheckOutlined, DragOutlined, KeyOutlined, LayoutOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
@@ -129,7 +129,7 @@ export default function AppLayout() {
             <Button type="text"><Avatar size="small" src={user.photo || undefined} icon={<UserOutlined />} style={{ marginRight: 8 }} />{user.full_name || user.email}</Button>
           </Dropdown>
         </Header>
-        <Content><Outlet /></Content>
+        <Content><Suspense fallback={<div style={{ display: 'grid', placeItems: 'center', padding: 80 }}><Spin /></div>}><Outlet /></Suspense></Content>
       </Layout>
       <ChangePassword open={pw} onClose={() => setPw(false)} />
     </Layout>

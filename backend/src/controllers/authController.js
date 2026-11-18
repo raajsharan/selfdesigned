@@ -96,7 +96,7 @@ exports.changePassword =async (req, res) => {
   if (!STRONG.test(new_password)) throw bad(PASSWORD_RULE);
   const { rows } = await db.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
   if (!(await bcrypt.compare(current_password, rows[0].password_hash))) throw bad('Current password is incorrect');
-  await db.query('UPDATE users SET password_hash = $1, tokens_valid_after = now(), updated_at = now() WHERE id = $2', [await bcrypt.hash(new_password, 12), req.user.id]);
+  await db.query('UPDATE users SET password_hash = $1, tokens_valid_after = $3, updated_at = now() WHERE id = $2', [await bcrypt.hash(new_password, 12), req.user.id, new Date()]);   // the app's clock, the same one that stamps tokens
   audit(req, 'change_password', 'user', req.user.id);
   res.json({ ok: true, token: signToken(req.user) });   // every other session is signed out; this one continues on a fresh token
 };

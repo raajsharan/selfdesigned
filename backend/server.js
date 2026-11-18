@@ -5,6 +5,7 @@ const fs = require('fs');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const compression = require('compression');
 const swaggerUi = require('swagger-ui-express');
 
 const { assertKey } = require('./src/utils/crypto');
@@ -40,6 +41,7 @@ app.use((req, res, next) => { res.setHeader('Permissions-Policy', 'camera=(), mi
 
 const origins = (process.env.CORS_ORIGIN || 'http://localhost:4000,http://localhost:5173').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({ origin: (o, cb) => (!o || origins.includes(o) ? cb(null, true) : cb(null, false)), credentials: false }));
+app.use(compression());   // gzip the UI files and the JSON lists: roughly a third of the bytes
 app.use(express.json({ limit: '1mb' }));
 
 app.use('/api', require('./src/middleware/limits').api);
@@ -49,8 +51,12 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 // Serve the compiled SPA (single-port production mode).
 const dist = path.resolve(__dirname, '../frontend/dist');
 if (fs.existsSync(dist)) {
-  app.use(express.static(dist, { index: false, maxAge: isProd ? '1h' : 0 }));
-  app.get('*', (req, res) => res.sendFile(path.join(dist, 'index.html')));
+  // Files in /assets have a content hash in their name, so they can be cached for a year; index.html must always be re-checked so a new release is picked up.
+  app.use(express.static(dist, { index: false, setHeaders: (res, file) => {
+    if (file.split(path.sep).includes('assets')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    else res.setHeader('Cache-Control', 'no-cache');
+  } }));
+  app.get('*', (req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(path.join(dist, 'index.html')); });
 }
 app.use(errorHandler);
 

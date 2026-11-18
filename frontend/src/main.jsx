@@ -12,6 +12,9 @@ import './styles.css';
 // shows the messages inline, so swallow only that specific rejection instead of logging it as an error.
 window.addEventListener('unhandledrejection', (e) => { if (e.reason && Array.isArray(e.reason.errorFields)) e.preventDefault(); });
 
+// Pages load on demand. After a new release an open tab can ask for a page file that no longer exists: reload once to pick up the new version.
+window.addEventListener('vite:preloadError', () => { try { if (sessionStorage.getItem('inv_reload') !== '1') { sessionStorage.setItem('inv_reload', '1'); location.reload(); } else sessionStorage.removeItem('inv_reload'); } catch { location.reload(); } });
+
 function Themed({ children }) {
   const { primary_color } = useBranding();
   const dark = useThemeMode().mode === 'dark';
