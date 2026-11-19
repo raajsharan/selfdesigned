@@ -29,7 +29,7 @@ export default function AddToInventoryModal({ type, vm, open, onClose, onDone })
   useEffect(() => {
     if (!open || !vm) return;
     form.resetFields(); setInfo(null); setLoading(true);
-    const page = targets[0]?.slug;
+    const page = (targets.find((p) => /^assets?[\s_-]*records?$/i.test(p.title) || /^assets?([_-]?records?)?$/i.test(p.slug)) || targets.find((p) => /asset/i.test(`${p.title} ${p.slug}`)) || targets[0])?.slug;   // Assets Records first
     // The row already knows the basics; the server adds the host, OS version, department and location.
     form.setFieldsValue({ page, vm_name: vm.name, hostname: vm.name, ip_address: vm.ip_address, mac_address: (vm.mac_addresses || [])[0], server_status: vm.is_off ? 'Inactive' : 'Active' });
     api.get(`/${type}/vms/${vm.id}/inventory-defaults`).then((r) => {
