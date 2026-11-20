@@ -19,6 +19,7 @@ designer.use(authenticate);
 designer.get('/', h(pages.list));
 designer.get('/meta', ...adminPages, h(pages.meta));
 designer.put('/order', ...adminPages, body('ids').isArray({ min: 1, max: 500 }), body('ids.*').isInt({ min: 1 }), validate, h(pages.reorder));
+designer.post('/standard-fields', ...adminPages, body('ids').isArray({ max: 20 }), body('ids.*').isString().isLength({ max: 32 }), validate, h(pages.standardFields));
 designer.post('/', ...adminPages, body('slug').isString(), body('title').isString(), validate, h(pages.create));
 designer.post('/:id/duplicate', ...adminPages, id, body('slug').isString(), body('title').isString(), validate, h(pages.duplicate));
 designer.put('/:id', ...adminPages, id, validate, h(pages.update));

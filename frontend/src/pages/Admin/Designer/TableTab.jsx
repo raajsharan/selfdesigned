@@ -6,7 +6,7 @@ export const META_COLS = [{ key: '_created_at', label: 'Created' }, { key: '_upd
 
 export default function TableTab({ config, setConfig }) {
   const table = config.table;
-  const all = [...config.fields.filter((f) => f.type !== 'password' && f.type !== 'hostname_suggest').map((f) => ({ key: f.key, label: f.label })), ...META_COLS];
+  const all = [...config.fields.filter((f) => f.type !== 'hostname_suggest').map((f) => ({ key: f.key, label: f.label })), ...META_COLS];
   const label = (k) => all.find((a) => a.key === k)?.label || k;
   const used = new Set(table.columns.map((c) => c.key));
   const palette = all.filter((a) => !used.has(a.key));

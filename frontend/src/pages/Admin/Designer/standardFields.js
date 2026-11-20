@@ -1,4 +1,4 @@
-// The standard building blocks offered when a records page is created. Each has a role, so it takes part in the inventory-wide checks:
+// The standard building blocks offered when a records page is created; their field definitions come from the Field Library. Each has a role, so it takes part in the inventory-wide checks:
 // IP Address (unique across EVERY page), Asset tag (unique, filled from the department's tag range), the Suggested hostname, MAC, status.
 export const STANDARD = [
   { id: 'ip', label: 'IP Address', desc: 'Validated x.x.x.x and checked against every other page: no two active records anywhere can share an IP address.' },
@@ -9,21 +9,14 @@ export const STANDARD = [
 ];
 export const STANDARD_DEFAULT = STANDARD.map((s) => s.id);
 
-const F = {
-  name: { key: 'vm_name', label: 'Name', type: 'text', role: 'name', required: true },
-  ip: { key: 'ip_address', label: 'IP Address', type: 'ip', role: 'ip', required: true, hint: 'Must be unique across every page of the inventory' },
-  mac: { key: 'mac_address', label: 'MAC Address', type: 'mac', role: 'mac' },
-  status: { key: 'status', label: 'Status', type: 'select', role: 'status', optionsCategory: 'server_status' },
-  department: { key: 'department', label: 'Department', type: 'select', role: 'department', optionsCategory: 'department' },
-  asset_tag: { key: 'asset_tag', label: 'Asset Tag', type: 'text', role: 'asset_tag', hint: 'Filled from the department tag range; unique across all pages' },
-  hostname: { key: 'hostname', label: 'OS Hostname', type: 'text', role: 'hostname' },
-  location: { key: 'location', label: 'Location', type: 'select', role: 'location', optionsCategory: 'location' },
-  os_type: { key: 'os_type', label: 'OS Type', type: 'select', role: 'os', optionsCategory: 'os_type' },
-  suggest: { key: 'suggested_hostname', label: 'Suggested Hostname', type: 'hostname_suggest' },
-};
+/** Which library fields the chosen blocks need (ids of the server's standard list). Hostname Naming pulls in the Asset Tag and Department. */
+export function neededFields(picked) {
+  const has = (id) => picked.includes(id); const tag = has('tag') || has('hostname');
+  return ['name', has('ip') && 'ip', has('mac') && 'mac', has('status') && 'status', tag && 'department', tag && 'asset_tag', has('hostname') && 'hostname', has('hostname') && 'location', has('hostname') && 'os_type', has('hostname') && 'suggest'].filter(Boolean);
+}
 
 /** The page config (fields, form, table) for the chosen standard blocks. `picked` = ids from STANDARD; Hostname Naming pulls in the Asset Tag. */
-export function standardConfig(picked) {
+export function standardConfig(picked, F) {   // F = the field definitions from the Field Library (POST /pages/standard-fields)
   const has = (id) => picked.includes(id);
   const tag = has('tag') || has('hostname');   // the hostname needs the asset tag
   const sections = [

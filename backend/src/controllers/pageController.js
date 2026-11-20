@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { pageKey } = require('../config/pages');
 const svc = require('../services/pageService');
 const records = require('./recordController');
+const standard = require('../services/standardFieldService');
 const { audit } = require('../services/auditService');
 const { getSetting, setSetting } = require('../services/settingsService');
 const { bad, notFound, conflict, forbidden } = require('../utils/httpError');
@@ -18,6 +19,13 @@ exports.loadPage = asyncHandler(async (req, res, next) => {
 });
 /** Dispatch a handler by page kind (records pages vs "view" pages). */
 exports.byKind = (map) => (req, res, next) => (map[req.page.kind] ? map[req.page.kind](req, res, next) : next(bad('That action is not available for this kind of page')));
+
+/** Standard fields for a new page, taken from the Field Library (missing ones are created there first). */
+exports.standardFields = async (req, res) => {
+  const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).map(String);
+  const r = await standard.resolveStandardFields(ids, (id, name) => audit(req, 'create', 'field_library', id, { name, source: 'new page' }));
+  res.json(r);
+};
 
 exports.meta = (req, res) => res.json({ roles: Object.entries(svc.ROLE_LABELS).map(([key, label]) => ({ key, label })), types: svc.FIELD_TYPES, icons: svc.ICONS });
 

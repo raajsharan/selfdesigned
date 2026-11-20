@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, App, Button, Checkbox, Form, Input, Modal, Radio, Select, Space, Tag } from 'antd';
-import { STANDARD, STANDARD_DEFAULT, standardConfig } from './Designer/standardFields';
+import { STANDARD, STANDARD_DEFAULT, neededFields, standardConfig } from './Designer/standardFields';
 import { CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import api, { errMsg } from '../../api/client';
 import PageHeader from '../../components/PageHeader';
@@ -23,7 +23,13 @@ export default function PagesAdmin() {
     const v = await form.validateFields();
     try {
       const picked = v.standard || [];
-      const config = v.kind === 'view' ? { sources: [], columns: [] } : (picked.length ? standardConfig(picked) : { fields: [], form: { sections: [] }, table: { columns: [] } });
+      let config = { fields: [], form: { sections: [] }, table: { columns: [] } };
+      if (v.kind === 'view') config = { sources: [], columns: [] };
+      else if (picked.length) {   // the fields come from the Field Library; any that it lacks are created there first
+        const lib = (await api.post('/pages/standard-fields', { ids: neededFields(picked) })).data;
+        config = standardConfig(picked, lib.fields);
+        if (lib.created.length) message.info(`Added to the Field Library: ${lib.created.join(', ')}`);
+      }
       const r = await api.post('/pages', { slug: v.slug, title: v.title, icon: v.icon, kind: v.kind, config, hostname_naming: v.kind !== 'view' && picked.includes('hostname') });
       message.success('Page created. Now design it.'); setCreate(false); reload(); nav(`/admin/pages/${r.data.slug}`);
     } catch (e) { message.error(errMsg(e)); }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { App, Button, Empty, Input, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd';
-import { DeleteOutlined, DownloadOutlined, EditOutlined, EyeOutlined, PlusOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, EditOutlined, EyeInvisibleOutlined, EyeOutlined, PlusOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api, { download, errMsg } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +14,26 @@ import { optionsOf } from './FormFields';
 
 const META = { _created_at: { title: 'Created', get: (r) => r.created_at }, _updated_at: { title: 'Updated', get: (r) => r.updated_at } };
 const statusColor = (v) => (/inactive|retired|off/i.test(v) ? 'default' : /active|online|running/i.test(v) ? 'green' : /maint|pending/i.test(v) ? 'orange' : /fail|down|error/i.test(v) ? 'red' : 'blue');
+
+/** A stored password in the table: dots until the eye is clicked (needs the "view passwords" permission; each reveal is audited on the server). */
+function PasswordCell({ slug, record, fieldKey }) {
+  const { message } = App.useApp(); const { user } = useAuth();
+  const [pw, setPw] = useState(null); const [busy, setBusy] = useState(false);
+  useEffect(() => { setPw(null); }, [record.id, record.updated_at]);   // a row that changed or was replaced never keeps a revealed value
+  if (!(record.secret_keys || []).includes(fieldKey)) return <span style={{ color: 'var(--faint)' }}>-</span>;
+  const can = user?.can_view_passwords || user?.role === 'superadmin';
+  const toggle = async () => {
+    if (pw !== null) { setPw(null); return; }
+    setBusy(true);
+    try { setPw((await api.get(`/p/${slug}/records/${record.id}/secrets/${fieldKey}`)).data.password || ''); } catch (e) { message.error(errMsg(e)); } finally { setBusy(false); }
+  };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: '100%' }}>
+      <span className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', userSelect: pw === null ? 'none' : 'text' }}>{pw === null ? '••••••••' : pw}</span>
+      {can && <Button type="text" size="small" loading={busy} icon={pw === null ? <EyeOutlined /> : <EyeInvisibleOutlined />} onClick={toggle} aria-label={pw === null ? 'Show password' : 'Hide password'} />}
+    </span>
+  );
+}
 
 export default function RecordsPage({ page }) {
   const { message, modal } = App.useApp(); const { canWrite, has } = useAuth();
@@ -41,8 +61,12 @@ export default function RecordsPage({ page }) {
     // Frozen columns are listed first: a sticky column in the middle would overlap its neighbours.
     const defs = cfg.table?.columns || [];
     const ordered = [...defs.filter((c) => c.fixed), ...defs.filter((c) => !c.fixed)];
-    const cols = ordered.map((c) => {
+    // Every password field gets a column (masked, with an eye icon), also on pages designed before and after this; the designer can still place it.
+    const listed = new Set(ordered.map((c) => c.key));
+    const withPw = [...ordered, ...cfg.fields.filter((f) => f.type === 'password' && !listed.has(f.key)).map((f) => ({ key: f.key }))];
+    const cols = withPw.map((c) => {
       const f = fields[c.key]; const meta = META[c.key];
+      if (f?.type === 'password') return { title: f.label, key: c.key, width: c.width || 190, fixed: c.fixed ? 'left' : undefined, render: (_, r) => <PasswordCell slug={page.slug} record={r} fieldKey={c.key} /> };
       return { title: meta ? meta.title : f?.label || c.key, key: c.key, width: c.width || (c.fixed ? 160 : undefined), sorter: true, ellipsis: true, fixed: c.fixed ? 'left' : undefined,
         render: (_, r) => {
           const v = meta ? meta.get(r) : r.data[c.key];

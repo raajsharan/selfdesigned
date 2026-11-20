@@ -82,7 +82,7 @@ function cleanTable(table, fields) {
   for (const c of Array.isArray(table?.columns) ? table.columns : []) {
     const key = typeof c === 'string' ? c : c.key;
     if (!keys.has(key) || key === '_page') throw bad(`The table uses a column that does not exist: "${key}"`);
-    if (['password', 'hostname_suggest'].includes(fields.find((f) => f.key === key)?.type)) throw bad('Password and suggested-hostname fields cannot be table columns');
+    if (fields.find((f) => f.key === key)?.type === 'hostname_suggest') throw bad('A suggested-hostname field cannot be a table column');   // password fields can: shown masked with an eye icon
     if (seen.has(key)) continue;
     seen.add(key); columns.push({ key, width: intIn(c.width, 60, 600, 0) || undefined, fixed: c.fixed === true || undefined });   // fixed = frozen at the left while scrolling
   }
