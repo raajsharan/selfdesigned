@@ -21,7 +21,7 @@ async function load(req) {
 
   // Department and location come from the inventory record of the host (matched on hostname / name, short name or IP address), on pages this user may open.
   const recs = (await db.query(
-    `SELECT p.slug, r.hostname, r.vm_name, r.ip_address, r.department, r.location FROM inventory_records r JOIN inventory_pages p ON p.id = r.page_id
+    `SELECT p.slug, r.hostname, r.vm_name, r.ip_address, r.department, r.location, r.asset_owner FROM inventory_records r JOIN inventory_pages p ON p.id = r.page_id
      WHERE r.is_deleted = FALSE AND r.is_decommissioned = FALSE`)).rows.filter((r) => req.user.pages.has(pageKey(r.slug)));
   const byName = new Map(); const byShort = new Map(); const byIp = new Map();
   for (const r of recs) {
@@ -37,7 +37,8 @@ async function load(req) {
     const ds = (h.datastores || []).map((d) => ({ key: `${h.server_id}:${d.id}`, name: d.name, total_tb: round(d.capacity / TIB, 3), used_tb: round((d.capacity - (d.free || 0)) / TIB, 3) }));
     hosts.push({
       key: `${h.server_id}:${h.moid}`, name: h.name, server: h.server_name, cluster: h.cluster, datacenter: h.datacenter, state: h.state, vms: h.vms,
-      department: (rec && rec.department) || 'Unassigned', location: (rec && rec.location) || 'Unknown', ip: rec ? rec.ip_address : null, in_inventory: !!rec,
+      department: (rec && rec.department) || 'Unassigned', location: (rec && rec.location) || 'Unknown', owner: (rec && rec.asset_owner) || 'Unassigned', in_inventory: !!rec,
+      ip: (rec && rec.ip_address) || (/^\d{1,3}(\.\d{1,3}){3}$/.test(h.name) ? h.name : null) || (h.is_standalone_esxi ? h.server_host : null),   // the record's IP, else the host's own address
       cpu_ghz_total: round(h.cpu_mhz_total / 1000, 2), cpu_ghz_used: round(h.cpu_mhz_used / 1000, 2),
       ram_gb_total: round(h.mem_mb_total / 1024, 1), ram_gb_used: round(h.mem_mb_used / 1024, 1),
       storage_tb_total: round(ds.reduce((n, d) => n + d.total_tb, 0), 3), storage_tb_used: round(ds.reduce((n, d) => n + d.used_tb, 0), 3), datastores: ds,
@@ -55,7 +56,7 @@ exports.csv = async (req, res) => {
   const pct = (u, t) => (t ? Math.round((u / t) * 100) : '');
   audit(req, 'export', 'esxi_utilization', null, { rows: hosts.length });
   sendCsv(res, `esxi-utilization-${new Date().toISOString().slice(0, 10)}.csv`,
-    [['name', 'Host'], ['server', 'Server'], ['department', 'Department'], ['location', 'Location'], ['vms', 'VMs'],
+    [['name', 'Host'], ['ip', 'IP Address'], ['server', 'Server'], ['department', 'Department'], ['owner', 'Owner'], ['location', 'Location'], ['vms', 'VMs'],
       ['cpu_ghz_total', 'CPU total (GHz)'], ['cpu_ghz_used', 'CPU used (GHz)'], ['cpu_used_pct', 'CPU used %'], ['cpu_free_pct', 'CPU free %'],
       ['ram_gb_total', 'RAM total (GB)'], ['ram_gb_used', 'RAM used (GB)'], ['ram_used_pct', 'RAM used %'], ['ram_free_pct', 'RAM free %'],
       ['storage_tb_total', 'Storage total (TB)'], ['storage_tb_used', 'Storage used (TB)'], ['storage_used_pct', 'Storage used %'], ['storage_free_pct', 'Storage free %'], ['collected_at', 'Collected']].map(([key, label]) => ({ key, label })),
