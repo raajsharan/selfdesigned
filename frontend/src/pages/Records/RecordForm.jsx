@@ -65,6 +65,7 @@ export default function RecordForm({ page, record, dropdowns, open, onClose, onS
       if (applyRef.current) body.apply_hostname = applyRef.current;   // ticked in the panel; reset whenever a form opens
       const res = (record ? await api.put(`/p/${page.slug}/records/${record.id}`, body) : await api.post(`/p/${page.slug}/records`, body)).data;
       message.success(record ? 'Saved' : 'Created'); onSaved();
+      if (res.discovery?.message) (res.discovery.action === 'created' || res.discovery.action === 'updated' ? message.success : message.warning)(res.discovery.message, 8);
       if (res.rename_skipped) message.warning(`Saved, but the host was not renamed: ${res.rename_skipped}`, 8);
       if (res.rename_job) trackRename(res.rename_job, message);
     } catch (e) { message.error(errMsg(e)); } finally { setSaving(false); }

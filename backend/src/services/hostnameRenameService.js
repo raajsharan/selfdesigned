@@ -86,4 +86,4 @@ const getJob = (req) => {
   return { id: j.id, status: j.status, state: j.state, message: j.message };
 };
 
-module.exports = { request, getJob };
+module.exports = { request, getJob, loginFields };

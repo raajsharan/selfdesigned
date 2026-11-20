@@ -11,6 +11,7 @@ const decommissionSvc = require('../services/decommissionService');
 const { validateTag, nextFreeTags, getRange, formatTag } = require('../services/tagRangeService');
 const { ROLE_COLUMNS, promote, roleKeys } = require('../services/pageService');
 const hostRename = require('../services/hostnameRenameService');
+const registerDiscovery = require('../services/discoveryRegistrationService');
 const { unionSql } = require('../utils/inventoryUnion');
 
 const { KEY_RE } = require('../services/pageService');
@@ -212,7 +213,8 @@ exports.create = async (req, res) => {
   teams.notify('asset_created', { title: `New record: ${display(row)}`, status: 'good',
     facts: [['Page', req.page.title], ['IP', row.ip_address], ['MAC', row.mac_address], ['Asset tag', row.asset_tag], ['By', req.user.email]] });
   const rn = req.body.apply_hostname ? await hostRename.request(req, req.page, row, req.body.apply_hostname) : {};
-  res.status(201).json({ ...sanitize(row, req.page), ...rn });
+  const discovery = await registerDiscovery.sync(req, req.page, row);   // ESXi / Proxmox assets go to Migration & Discovery
+  res.status(201).json({ ...sanitize(row, req.page), ...rn, ...(discovery ? { discovery } : {}) });
 };
 
 exports.update = async (req, res) => {
@@ -220,7 +222,8 @@ exports.update = async (req, res) => {
   audit(req, 'update', `page:${req.page.slug}`, after.id, { name: display(after), changed });
   if (changed.length) teams.notify('asset_updated', { title: `Record updated: ${display(after)}`, status: 'info', facts: [['Page', req.page.title], ['Changed', changed.join(', ')], ['By', req.user.email]] });
   const rn = req.body.apply_hostname ? await hostRename.request(req, req.page, after, req.body.apply_hostname, before) : {};
-  res.json({ ...sanitize(after, req.page), ...rn });
+  const discovery = await registerDiscovery.sync(req, req.page, after);
+  res.json({ ...sanitize(after, req.page), ...rn, ...(discovery ? { discovery } : {}) });
 };
 
 exports.remove = async (req, res) => {
@@ -399,14 +402,15 @@ exports.importXlsx = async (req, res) => {
   }
   if (summary.error && req.query.skip_errors !== 'true') throw bad(`${summary.error} row(s) have errors. Fix them or import with "skip errors".`);
   const allowed = new Set((req.query.actions || 'create,merge').split(','));
-  let created = 0; let merged = 0;
+  let created = 0; let merged = 0; const saved = [];
   await db.withTx(async (c) => {
     for (const p of plan) {
       if (!allowed.has(p.action)) continue;
-      if (p.action === 'create') { await insertRecord(c, page, p.data, req.user); created++; }
-      if (p.action === 'merge') { await updateRecord(c, page, p.id, p.data, req.user); merged++; }
+      if (p.action === 'create') { saved.push(await insertRecord(c, page, p.data, req.user)); created++; }
+      if (p.action === 'merge') { saved.push((await updateRecord(c, page, p.id, p.data, req.user)).after); merged++; }
     }
   });
+  for (const row of saved) await registerDiscovery.sync(req, page, row);   // ESXi / Proxmox rows go to Migration & Discovery
   audit(req, 'import', `page:${page.slug}`, null, { created, merged, skipped: summary.error });
   res.json({ mode: 'commit', created, merged, skipped: summary.error });
 };

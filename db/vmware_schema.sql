@@ -71,3 +71,6 @@ CREATE TABLE IF NOT EXISTS vmware_host_stats (
 
 -- 'mac_mapping' when the IP was filled from the uploaded MAC mapping files instead of being discovered.
 ALTER TABLE vmware_vms ADD COLUMN IF NOT EXISTS ip_source VARCHAR(16);
+
+-- Server registered automatically from an inventory record whose OS Type is VMware ESXi / vCenter.
+ALTER TABLE vmware_servers ADD COLUMN IF NOT EXISTS record_id BIGINT;
