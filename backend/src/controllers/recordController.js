@@ -43,9 +43,9 @@ function coerce(f, v) {
     case 'boolean': return v === true || ['true', 'yes', '1', 'y'].includes(String(v).toLowerCase());
     case 'date': { const d = v instanceof Date ? v : new Date(v); if (Number.isNaN(d.getTime())) throw bad(`${f.label} is not a valid date`); return d.toISOString().slice(0, 10); }
     case 'ip': {
-      const s = String(v).trim();
-      if (!/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/.test(s)) throw bad(`${f.label} must be an IP address like 192.168.1.1`);
-      return s;
+      const s = String(v).replace(/[\s\u200b\ufeff]+/g, '');   // any address is accepted (no range or format limits); only duplicates are refused
+      if (s.length > 64) throw bad(`${f.label} is too long`);
+      return s || null;
     }
     case 'mac': return normalizeMac(String(v).trim());
     default: { const s = String(v).trim().slice(0, f.type === 'textarea' ? 5000 : 255); return f.role === 'mac' ? normalizeMac(s) : s; }

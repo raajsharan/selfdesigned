@@ -51,13 +51,12 @@ function Control({ f, dropdowns, disabled, extra, ...p }) {
         onChange={(v, o) => { p.onChange?.(v, o); (extra?.dependents || []).forEach((k) => extra.form.setFieldValue(k, undefined)); }} />;
     }
     case 'password': return <Input.Password {...p} autoComplete="new-password" disabled={disabled} placeholder={extra?.hasSecret ? 'Stored. Type to replace.' : ''} />;
-    case 'ip': return <Input {...p} placeholder="192.168.1.1" inputMode="decimal" maxLength={15} disabled={disabled} suffix={IP_RULE.pattern.test(p.value || '') ? <span className="ip-ok"><CheckOutlined /> Valid IPv4</span> : null} />;
+    case 'ip': return <Input {...p} placeholder="192.168.1.1" maxLength={64} disabled={disabled} />;
     case 'mac': return <Input {...p} placeholder="AA:BB:CC:DD:EE:FF" maxLength={17} disabled={disabled} />;
     default: return <Input {...p} maxLength={255} disabled={disabled} />;
   }
 }
 
-const IP_RULE = { pattern: /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/, message: 'Use the format x.x.x.x, e.g. 192.168.1.1' };
 const MAC_RULE = { pattern: /^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$/, message: 'Use 6 pairs of hex digits, e.g. AA:BB:CC:DD:EE:FF' };
 
 /**
@@ -88,12 +87,11 @@ export default function FormFields({ config, dropdowns = {}, form, disabled = fa
                     const rules = [];
                     if (f.required && f.type !== 'boolean' && !(f.type === 'password' && secretKeys.includes(f.key))) rules.push({ required: true, message: `${f.label} is required` });
                     if (f.role === 'mac' || f.type === 'mac') rules.push(MAC_RULE);
-                    if (f.type === 'ip') rules.push(IP_RULE);
                     if (f.type === 'ip' || f.role === 'ip') {
                       // Inventory-wide: an IP address may be on only one active record, on any page.
                       if (slug && !disabled) rules.push({ validator: async (_, v) => {
-                        const ip = String(v || '').trim();
-                        if (!ip || !IP_RULE.pattern.test(ip)) return;
+                        const ip = String(v || '').replace(/[\s\u200b\ufeff]+/g, '');
+                        if (!ip) return;
                         let r; try { r = (await api.get(`/p/${slug}/check-ip`, { params: { ip, exclude: recordId || undefined } })).data; } catch { return; }   // the server re-checks on save
                         if (r.used) throw new Error(`${ip} is already used on "${r.page}". IP addresses must be unique across the inventory.`);
                       }, validateTrigger: 'onBlur' });
