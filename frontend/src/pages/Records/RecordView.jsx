@@ -19,12 +19,12 @@ const Chip = ({ tone: t = 'blue', dot, icon, children }) => <span className={`ch
  */
 export default function RecordView({ page, record, open, onClose, onEdit, onDecommission, onDelete, onStep, canStep = {} }) {
   const { message } = App.useApp(); const { user, canWrite } = useAuth();
-  const [pw, setPw] = useState({}); const [tab, setTab] = useState('details'); const [expanded, setExpanded] = useState({});
+  const [pw, setPw] = useState({}); const [tab, setTab] = useState('details');
   const [activity, setActivity] = useState(null); const [integ, setInteg] = useState(null);
   const id = record?.id; const slug = page.slug;
 
   // Each record starts on Details with everything collapsed; the other tabs load when first opened.
-  useEffect(() => { setPw({}); setTab('details'); setExpanded({}); setActivity(null); setInteg(null); }, [id]);
+  useEffect(() => { setPw({}); setTab('details'); setActivity(null); setInteg(null); }, [id]);
   useEffect(() => {
     if (!open || !id) return;
     if (tab === 'activity' && !activity) api.get(`/p/${slug}/records/${id}/activity`).then((r) => setActivity(r.data)).catch((e) => { message.error(errMsg(e)); setActivity([]); });
@@ -102,15 +102,11 @@ export default function RecordView({ page, record, open, onClose, onEdit, onDeco
       <div className="rvw-grid">
         {cfg.form.sections.map((s) => {
           const items = s.items.map((i) => fields[i.key]).filter((f) => f && f.type !== 'hostname_suggest' && isVisible(f, d));
-          const hidden = items.filter(isEmpty); const shown = expanded[s.id] ? items : items.filter((f) => !isEmpty(f));
           if (!items.length) return null;
           return (
             <section key={s.id} className="rvw-card">
               {s.title && <h3>{s.title}</h3>}
-              {shown.map((f) => <div key={f.key} className="rvw-row"><span className="rvw-label">{f.label}</span><span className="rvw-value">{isEmpty(f) ? dash : show(f)}</span></div>)}
-              {hidden.length > 0 && !expanded[s.id] && (   // once shown, the empty fields stay shown (there is no Hide)
-                <div className="rvw-hidden"><span>{hidden.length} empty field{hidden.length === 1 ? '' : 's'} hidden: {hidden.map((f) => f.label).join(', ')}</span>
-                  <Button type="link" size="small" onClick={() => setExpanded((e) => ({ ...e, [s.id]: true }))}>Show</Button></div>)}
+              {items.map((f) => <div key={f.key} className="rvw-row"><span className="rvw-label">{f.label}</span><span className="rvw-value">{isEmpty(f) ? dash : show(f)}</span></div>)}
             </section>);
         })}
       </div>
