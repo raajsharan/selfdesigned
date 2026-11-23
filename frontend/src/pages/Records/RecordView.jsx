@@ -108,9 +108,9 @@ export default function RecordView({ page, record, open, onClose, onEdit, onDeco
             <section key={s.id} className="rvw-card">
               {s.title && <h3>{s.title}</h3>}
               {shown.map((f) => <div key={f.key} className="rvw-row"><span className="rvw-label">{f.label}</span><span className="rvw-value">{isEmpty(f) ? dash : show(f)}</span></div>)}
-              {hidden.length > 0 && (
-                <div className="rvw-hidden"><span>{expanded[s.id] ? 'Showing' : ''} {hidden.length} empty field{hidden.length === 1 ? '' : 's'}{expanded[s.id] ? '' : ` hidden: ${hidden.map((f) => f.label).join(', ')}`}</span>
-                  <Button type="link" size="small" onClick={() => setExpanded((e) => ({ ...e, [s.id]: !e[s.id] }))}>{expanded[s.id] ? 'Hide' : 'Show'}</Button></div>)}
+              {hidden.length > 0 && !expanded[s.id] && (   // once shown, the empty fields stay shown (there is no Hide)
+                <div className="rvw-hidden"><span>{hidden.length} empty field{hidden.length === 1 ? '' : 's'} hidden: {hidden.map((f) => f.label).join(', ')}</span>
+                  <Button type="link" size="small" onClick={() => setExpanded((e) => ({ ...e, [s.id]: true }))}>Show</Button></div>)}
             </section>);
         })}
       </div>
