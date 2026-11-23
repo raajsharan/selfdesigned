@@ -22,3 +22,6 @@ CREATE TABLE IF NOT EXISTS tenable_assets (
   raw         JSONB NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS idx_tenable_assets_import ON tenable_assets (import_id);
+
+-- Tenable exports list every address of a host in one cell, and names can be long: no tight limits on these columns.
+ALTER TABLE tenable_assets ALTER COLUMN hostname TYPE TEXT, ALTER COLUMN ip_address TYPE TEXT, ALTER COLUMN mac_address TYPE TEXT, ALTER COLUMN os TYPE TEXT;

@@ -73,7 +73,8 @@ exports.import = async (req, res) => {
     const row = ws.getRow(r); const g = (k) => (col[k] ? text(row.getCell(col[k])) : '');
     if (!g('hostname') && !g('ip_address')) continue;
     const ls = g('last_seen');
-    rows.push({ hostname: g('hostname') || null, ip_address: g('ip_address') || null, mac_address: g('mac_address') || null, os: g('os') || null,
+    const cap = (v) => (v ? String(v).slice(0, 4000) : null);   // a cell holding many addresses is kept, only absurd sizes are cut
+    rows.push({ hostname: cap(g('hostname')), ip_address: cap(g('ip_address')), mac_address: cap(g('mac_address')), os: cap(g('os')),
       critical: parseInt(g('critical'), 10) || 0, high: parseInt(g('high'), 10) || 0, medium: parseInt(g('medium'), 10) || 0, low: parseInt(g('low'), 10) || 0,
       last_seen: ls && !Number.isNaN(Date.parse(ls)) ? new Date(ls).toISOString() : null });
   }
