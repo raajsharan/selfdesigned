@@ -29,8 +29,14 @@ function requestJson(url, { method = 'GET', headers = {}, body, verifySsl = true
         });
       }
     );
-    req.on('timeout', () => req.destroy(new Error('Request timed out')));
-    req.on('error', reject);
+    const where = `${u.hostname}${u.port ? `:${u.port}` : ''}`;
+    const hint = 'Check that the address and port are right, the server is on, and the network or firewall allows this machine to reach it.';
+    req.on('timeout', () => req.destroy(new Error(`Cannot reach ${where}: no reply within ${Math.round(timeoutMs / 1000)} seconds. ${hint}`)));
+    req.on('error', (e) => {
+      const why = { ECONNREFUSED: 'the connection was refused (nothing is listening on that port)', ENOTFOUND: 'the host name could not be resolved', EAI_AGAIN: 'the host name could not be resolved',
+        EHOSTUNREACH: 'there is no route to the host', ENETUNREACH: 'there is no route to the network', ECONNRESET: 'the connection was closed by the server', ETIMEDOUT: 'the connection timed out' }[e.code];
+      reject(why ? new Error(`Cannot reach ${where}: ${why}. ${hint}`) : e);
+    });
     if (payload) req.write(payload);
     req.end();
   });
