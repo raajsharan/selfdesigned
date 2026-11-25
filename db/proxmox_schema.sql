@@ -47,3 +47,10 @@ ALTER TABLE proxmox_vms ADD COLUMN IF NOT EXISTS ip_source VARCHAR(16);
 
 -- Server registered automatically from an inventory record whose OS Type is Proxmox.
 ALTER TABLE proxmox_servers ADD COLUMN IF NOT EXISTS record_id BIGINT;
+
+-- Sign in with username + realm + password (like the other tools). The API token is optional and, when filled in, is used instead.
+ALTER TABLE proxmox_servers ADD COLUMN IF NOT EXISTS username VARCHAR(128);
+ALTER TABLE proxmox_servers ADD COLUMN IF NOT EXISTS realm VARCHAR(32) NOT NULL DEFAULT 'pam';
+ALTER TABLE proxmox_servers ADD COLUMN IF NOT EXISTS password_encrypted TEXT;
+ALTER TABLE proxmox_servers ALTER COLUMN token_id DROP NOT NULL;
+ALTER TABLE proxmox_servers ALTER COLUMN token_secret_encrypted DROP NOT NULL;

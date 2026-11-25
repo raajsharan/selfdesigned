@@ -64,19 +64,19 @@ async function sync(req, page, rec) {
     return { kind, action: 'updated', id: found.id, message: `${LABEL[kind]} entry "${found.name}" updated from the record.` };
   }
 
-  // Proxmox is reached with an API token (user@realm!name + secret), which an asset record does not hold: register it disabled.
+  // Proxmox is reached with a username + realm + password (or an API token), which the record does not tell apart: register it disabled.
   if (found) {
     if (found.host === host) return { kind, action: 'unchanged', id: found.id };
-    if (found.token_id) return { kind, action: 'unchanged', id: found.id };   // a working entry is never moved without its token being typed again
+    if (found.token_id || found.username) return { kind, action: 'unchanged', id: found.id };   // a working entry is never moved without its login being typed again
     await db.query('UPDATE proxmox_servers SET host = $1 WHERE id = $2', [host, found.id]);
     return { kind, action: 'updated', id: found.id, message: `${LABEL[kind]} entry "${found.name}" now uses ${host}.` };
   }
   const name = await freeName(table, rec.hostname || rec.vm_name || host);
   const { rows } = await db.query(
     `INSERT INTO proxmox_servers (name, host, port, token_id, token_secret_encrypted, verify_ssl, enabled, last_error, record_id)
-     VALUES ($1,$2,8006,'',$3,FALSE,FALSE,$4,$5) RETURNING id`, [name, host, encrypt(NONE), 'API token needed: add the token ID and secret here, then enable the server.', rec.id]);
+     VALUES ($1,$2,8006,'',$3,FALSE,FALSE,$4,$5) RETURNING id`, [name, host, encrypt(NONE), 'Login needed: add the username and password (or an API token) here, then enable the server.', rec.id]);
   audit(req, 'create', 'proxmox_server', rows[0].id, { name, source: 'inventory record', record: rec.id });
-  return { kind, action: 'created', id: rows[0].id, message: `Added to ${LABEL[kind]} as "${name}" but disabled: Proxmox needs an API token. Add it there.` };
+  return { kind, action: 'created', id: rows[0].id, message: `Added to ${LABEL[kind]} as "${name}" but disabled: add the username and password there, then enable it.` };
 }
 
 /** Never lets a problem here fail or slow the save: the record is already stored. */

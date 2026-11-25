@@ -17,9 +17,11 @@ module.exports = (typeKey) => {
   r.use(authenticate, requirePageAccess(typeKey));
 
   const serverRules = [body('name').optional().isString().trim().isLength({ min: 1, max: 128 }), hostRule, body('port').optional({ nullable: true }).isInt({ min: 1, max: 65535 }),
-    body('verify_ssl').optional().isBoolean(), body('enabled').optional().isBoolean()];
+    body('verify_ssl').optional().isBoolean(), body('enabled').optional().isBoolean(),
+    body('realm').optional({ values: 'falsy' }).isString().matches(/^[A-Za-z0-9_.-]{1,32}$/).withMessage('Realm: letters, digits, . _ - only'),
+    body('username').optional({ values: 'falsy' }).isString().isLength({ max: 128 }), body('token_id').optional({ values: 'falsy' }).isString().isLength({ max: 255 })];
   r.get('/servers', h(c.servers.list));
-  r.post('/servers', body('name').notEmpty(), body('host').notEmpty(), ...(typeKey === 'vmware' ? [body('username').notEmpty()] : [body('token_id').notEmpty()]), ...serverRules, validate, h(c.servers.create));
+  r.post('/servers', body('name').notEmpty(), body('host').notEmpty(), ...(typeKey === 'vmware' ? [body('username').notEmpty()] : []), ...serverRules, validate, h(c.servers.create));
   r.put('/servers/:id', id, ...serverRules, validate, h(c.servers.update));
   r.delete('/servers/:id', id, validate, h(c.servers.remove));
   r.post('/servers/:id/test', id, validate, h(c.servers.test));

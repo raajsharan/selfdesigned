@@ -13,7 +13,7 @@ const { loadInventoryIndex, classify, redact, macKey } = require('../services/re
 const MISSING = "(v.last_seen < COALESCE(s.last_discovery_at, now()) - interval '1 minute')";
 const TYPES = {
   vmware: {
-    serversTable: 'vmware_servers', vmsTable: 'vmware_vms', snapTable: 'vmware_snapshots', secretCol: 'password_encrypted', secretField: 'password',
+    serversTable: 'vmware_servers', vmsTable: 'vmware_vms', snapTable: 'vmware_snapshots', secrets: { password: 'password_encrypted' }, needs: (b) => (b.password ? null : 'password is required'),
     serverCols: ['name', 'host', 'username', 'verify_ssl', 'is_standalone_esxi', 'enabled'],
     view: `SELECT v.id, v.server_id, s.name AS server_name, v.moid AS ref, v.name, v.power_state AS state, v.ip_address, v.ip_source, v.mac_addresses, v.guest_os AS os,
       v.cpu_count, v.memory_mb, v.host_name AS host, v.cluster, v.datacenter, v.snapshot_count, v.last_seen, v.tools_status AS extra,
@@ -22,8 +22,9 @@ const TYPES = {
     offLabel: 'Powered off', svc: () => require('../services/vmwareService'), sched: () => require('../services/vmwareSchedulerService'),
   },
   proxmox: {
-    serversTable: 'proxmox_servers', vmsTable: 'proxmox_vms', snapTable: 'proxmox_snapshots', secretCol: 'token_secret_encrypted', secretField: 'token_secret',
-    serverCols: ['name', 'host', 'port', 'token_id', 'verify_ssl', 'enabled'],
+    serversTable: 'proxmox_servers', vmsTable: 'proxmox_vms', snapTable: 'proxmox_snapshots', secrets: { password: 'password_encrypted', token_secret: 'token_secret_encrypted' },
+    needs: (b) => ((b.username && b.password) || (b.token_id && b.token_secret) ? null : 'Enter the username and password, or an API token ID and secret'),
+    serverCols: ['name', 'host', 'port', 'username', 'realm', 'token_id', 'verify_ssl', 'enabled'],
     view: `SELECT v.id, v.server_id, s.name AS server_name, v.vmid::text AS ref, v.name, v.status AS state, v.ip_address, v.ip_source, v.mac_addresses, v.os_type AS os,
       v.cpu_count, v.memory_mb, v.node AS host, NULL::text AS cluster, s.name AS datacenter, v.snapshot_count, v.last_seen, v.type AS extra,
       (v.status = 'stopped') AS is_off, ${MISSING} AS is_missing, v.is_template, NULL::text AS folder
@@ -36,7 +37,8 @@ const guessOsType = (os = '') => (/windows/i.test(os) ? 'Windows' : /esxi/i.test
 
 module.exports = function buildDiscoveryController(typeKey) {
   const T = TYPES[typeKey];
-  const secretOf = ({ [T.secretCol]: s, ...rest }) => ({ ...rest, has_secret: !!s });
+  const SECRET_COLS = Object.values(T.secrets);
+  const secretOf = (row) => { const rest = { ...row }; let has = false; for (const c of SECRET_COLS) { has = has || !!row[c]; rest[c] = undefined; } return { ...rest, has_secret: has }; };
 
   function where(q) {
     const p = []; const w = ['TRUE'];
@@ -52,12 +54,13 @@ module.exports = function buildDiscoveryController(typeKey) {
   const servers = {
     list: async (req, res) => res.json((await db.query(`SELECT * FROM ${T.serversTable} ORDER BY name`)).rows.map(secretOf)),
     create: async (req, res) => {
-      if (!req.body[T.secretField]) throw bad(`${T.secretField.replace('_', ' ')} is required`);
-      const cols = T.serverCols.filter((c) => req.body[c] !== undefined);
-      const vals = cols.map((c) => req.body[c]);
+      const missing = T.needs(req.body); if (missing) throw bad(missing[0].toUpperCase() + missing.slice(1));
+      const cols = T.serverCols.filter((c) => req.body[c] !== undefined && req.body[c] !== '' && req.body[c] !== null);
+      const secs = Object.keys(T.secrets).filter((f) => req.body[f]);
+      const all = [...cols, ...secs.map((f) => T.secrets[f])];
       const { rows } = await db.query(
-        `INSERT INTO ${T.serversTable} (${[...cols, T.secretCol].join(',')}) VALUES (${[...cols, T.secretCol].map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`,
-        [...vals, encrypt(req.body[T.secretField])]);
+        `INSERT INTO ${T.serversTable} (${all.join(',')}) VALUES (${all.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`,
+        [...cols.map((c) => req.body[c]), ...secs.map((f) => encrypt(req.body[f]))]);
       audit(req, 'create', `${typeKey}_server`, rows[0].id, { name: rows[0].name });
       res.status(201).json(secretOf(rows[0]));
     },
@@ -65,11 +68,13 @@ module.exports = function buildDiscoveryController(typeKey) {
       // The stored password / token must not be redirected: changing where it is sent needs the secret to be typed again.
       const { rows: now } = await db.query(`SELECT * FROM ${T.serversTable} WHERE id = $1`, [req.params.id]);
       if (!now[0]) throw notFound('Server not found');
-      const moved = ['host', 'port', 'username', 'token_id'].some((c) => req.body[c] !== undefined && String(req.body[c]) !== String(now[0][c] ?? ''));
-      if (moved && !req.body[T.secretField]) throw bad(`You changed where this server is reached. Enter the ${T.secretField === 'password' ? 'password' : 'token secret'} again to save it.`);
+      const same = (c) => String(req.body[c] ?? '') === String(now[0][c] ?? '');
+      const moved = ['host', 'port', 'username', 'realm', 'token_id'].some((c) => T.serverCols.includes(c) && req.body[c] !== undefined && !same(c));
+      const typed = Object.keys(T.secrets).filter((f) => req.body[f]);
+      if (moved && !typed.length) throw bad('You changed where or how this server is reached. Enter the password (or token secret) again to save it.');
       const sets = []; const v = [];
-      for (const c of T.serverCols) if (req.body[c] !== undefined) { v.push(req.body[c]); sets.push(`${c} = $${v.length}`); }
-      if (req.body[T.secretField]) { v.push(encrypt(req.body[T.secretField])); sets.push(`${T.secretCol} = $${v.length}`); }
+      for (const c of T.serverCols) if (req.body[c] !== undefined) { v.push(req.body[c] === '' && !['name', 'host', 'realm', 'username'].includes(c) ? null : req.body[c]); sets.push(`${c} = $${v.length}`); }
+      for (const f of typed) { v.push(encrypt(req.body[f])); sets.push(`${T.secrets[f]} = $${v.length}`); }
       if (!sets.length) throw bad('Nothing to update');
       v.push(req.params.id);
       const { rows } = await db.query(`UPDATE ${T.serversTable} SET ${sets.join(', ')} WHERE id = $${v.length} RETURNING *`, v);

@@ -2,11 +2,34 @@ const db = require('../config/db');
 const { requestJson } = require('../utils/http');
 const { decrypt } = require('../utils/crypto');
 
-const headers = (s) => ({ Authorization: `PVEAPIToken=${s.token_id}=${decrypt(s.token_secret_encrypted)}` });
+const NONE = '-';   // placeholder stored for a secret that is not known yet
+const secretOf = (enc) => { try { const v = enc ? decrypt(enc) : ''; return v && v !== NONE ? v : ''; } catch { return ''; } };
+
+/**
+ * Request headers for one server. An API token (when one is saved) is used as is; otherwise the username + realm + password
+ * are exchanged for a login ticket once and the ticket is reused for the rest of the run.
+ */
+function authHeaders(server) {
+  if (server._auth) return server._auth;
+  server._auth = (async () => {
+    const tokenSecret = secretOf(server.token_secret_encrypted);
+    if (server.token_id && tokenSecret) return { headers: { Authorization: `PVEAPIToken=${server.token_id}=${tokenSecret}` }, how: 'API token' };
+    const password = secretOf(server.password_encrypted);
+    if (!server.username || !password) throw new Error('No login saved: enter the username and password (or an API token) for this server');
+    const user = server.username.includes('@') ? server.username : `${server.username}@${server.realm || 'pam'}`;
+    const r = await requestJson(`https://${server.host}:${server.port}/api2/json/access/ticket`, { method: 'POST', body: { username: user, password }, verifySsl: server.verify_ssl });
+    if (r.status === 401 || r.status === 403 || (r.status < 300 && !(r.json && r.json.data && r.json.data.ticket))) throw new Error('Proxmox rejected the username, realm or password');
+    if (r.status >= 300) throw new Error(`login -> HTTP ${r.status}`);
+    return { headers: { Cookie: `PVEAuthCookie=${encodeURIComponent(r.json.data.ticket)}` }, how: 'login' };
+  })();
+  server._auth.catch(() => { server._auth = null; });   // a failed login is retried next time
+  return server._auth;
+}
 
 async function pve(server, path, soft = false) {
-  const r = await requestJson(`https://${server.host}:${server.port}/api2/json${path}`, { headers: headers(server), verifySsl: server.verify_ssl });
-  if (r.status === 401 || r.status === 403) throw new Error(`Proxmox rejected the API token (HTTP ${r.status})`);
+  const { headers, how } = await authHeaders(server);
+  const r = await requestJson(`https://${server.host}:${server.port}/api2/json${path}`, { headers, verifySsl: server.verify_ssl });
+  if (r.status === 401 || r.status === 403) throw new Error(`Proxmox rejected the ${how === 'login' ? 'login' : 'API token'} (HTTP ${r.status})`);
   if (r.status >= 300 || !r.json) { if (soft) return null; throw new Error(`${path} -> HTTP ${r.status}`); }
   return r.json.data;
 }

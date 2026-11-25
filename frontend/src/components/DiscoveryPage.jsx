@@ -15,7 +15,10 @@ const SERVER_FIELDS = {
     { name: 'password', label: 'Password', type: 'password', required: true }, { name: 'verify_ssl', label: 'Verify TLS certificate', type: 'bool', default: true },
     { name: 'is_standalone_esxi', label: 'Standalone ESXi (not managed by vCenter)', type: 'bool', default: false }, { name: 'enabled', label: 'Enabled', type: 'bool', default: true }],
   proxmox: [{ name: 'name', label: 'Name', required: true }, { name: 'host', label: 'Proxmox host', required: true, help: 'Any cluster node. Hostname or IP, without https://' }, { name: 'port', label: 'Port', type: 'number', default: 8006 },
-    { name: 'token_id', label: 'API token ID', required: true, help: 'Format: user@realm!tokenname' }, { name: 'token_secret', label: 'API token secret', type: 'password', required: true },
+    { name: 'username', label: 'Username', help: 'e.g. root. Required unless an API token is entered below.', max: 128 },
+    { name: 'realm', label: 'Realm', type: 'select', required: true, default: 'pam', options: [{ value: 'pam', label: 'PAM (Linux)' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'ad', label: 'Active Directory' }, { value: 'ldap', label: 'LDAP' }] },
+    { name: 'password', label: 'Password', type: 'password', help: 'Required unless an API token is entered below.' },
+    { name: 'token_id', label: 'API token ID (optional, overrides the password)', help: 'Format: user@realm!tokenid', max: 255 }, { name: 'token_secret', label: 'API token secret', type: 'password' },
     { name: 'verify_ssl', label: 'Verify TLS certificate', type: 'bool', default: true }, { name: 'enabled', label: 'Enabled', type: 'bool', default: true }],
 };
 const stateTag = (s) => <Tag color={/on|run/i.test(s || '') && !/off/i.test(s || '') ? 'green' : /off|stop/i.test(s || '') ? 'default' : 'blue'}>{(s || 'unknown').replace('POWERED_', '').toLowerCase()}</Tag>;
